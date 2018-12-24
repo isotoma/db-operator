@@ -1,0 +1,30 @@
+digraph {
+  {
+    Absent [shape=Msquare]
+    Creating [shape=rectangle]
+    Created [shape=rectangle]
+    Deleting [shape=rectangle]
+    "Starting\nBackup" [shape=rectangle]
+    "Backup\nActive" [shape=rectangle]
+    "Backup:Absent" [shape=Mdiamond label=Absent]
+    "Backup:Created" [label=Created shape=diamond]
+    "Backup:Active" [label=Active shape=diamond]
+    SPDB [label="Starting\nPre-Delete\nBackup" shape=rectangle]
+    "PDBA" [label="Pre-Delete\nBackup\nActive" shape=rectangle]
+  }
+    Absent -> Creating;
+    Creating -> Created;
+    Created -> "Starting\nBackup";
+    Created -> SPDB;
+    SPDB -> PDBA;
+    PDBA -> Deleting;
+    Created -> "Deleting";
+    "Deleting" -> Absent;
+    "Starting\nBackup" -> "Backup\nActive";
+    "Backup\nActive" -> Created;
+    "Backup:Absent" -> "Backup:Created";
+    "Starting\nBackup" -> "Backup:Created" [style=dashed];
+    "Backup:Created" -> "Backup:Active";
+    "Backup:Active" -> "Backup:Absent";
+    "Backup:Active" -> "Backup\nActive" [style=dashed];
+}
