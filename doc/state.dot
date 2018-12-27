@@ -1,30 +1,26 @@
 digraph {
   {
-    Absent [shape=Msquare]
-    Creating [shape=rectangle]
-    Created [shape=rectangle]
-    Deleting [shape=rectangle]
-    "Starting\nBackup" [shape=rectangle]
-    "Backup\nActive" [shape=rectangle]
-    "Backup:Absent" [shape=Mdiamond label=Absent]
-    "Backup:Created" [label=Created shape=diamond]
-    "Backup:Active" [label=Active shape=diamond]
-    SPDB [label="Starting\nPre-Delete\nBackup" shape=rectangle]
-    "PDBA" [label="Pre-Delete\nBackup\nActive" shape=rectangle]
+    GONE [shape=point]
+    STARTING [shape=diamond]
+    BACKING_UP [shape=diamond]
+    COMPLETED [shape=diamond]
   }
-    Absent -> Creating;
-    Creating -> Created;
-    Created -> "Starting\nBackup";
-    Created -> SPDB;
-    SPDB -> PDBA;
-    PDBA -> Deleting;
-    Created -> "Deleting";
-    "Deleting" -> Absent;
-    "Starting\nBackup" -> "Backup\nActive";
-    "Backup\nActive" -> Created;
-    "Backup:Absent" -> "Backup:Created";
-    "Starting\nBackup" -> "Backup:Created" [style=dashed];
-    "Backup:Created" -> "Backup:Active";
-    "Backup:Active" -> "Backup:Absent";
-    "Backup:Active" -> "Backup\nActive" [style=dashed];
+    GONE -> CREATING;
+    CREATING -> CREATED;
+    CREATED -> BACKUP_REQUESTED;
+    BACKUP_REQUESTED -> BACKUP_IN_PROGRESS;
+    BACKUP_IN_PROGRESS -> STARTING;
+    BACKUP_IN_PROGRESS -> BACKUP_COMPLETED;
+    BACKUP_COMPLETED -> CREATED;
+    CREATED -> DELETION_REQUESTED;
+    DELETION_REQUESTED -> DELETION_IN_PROGRESS;
+    DELETION_IN_PROGRESS -> DELETED;
+    DELETED -> GONE;
+    CREATED -> BACKUP_BEFORE_DELETE_REQUESTED;
+    BACKUP_BEFORE_DELETE_REQUESTED -> BACKUP_BEFORE_DELETE_IN_PROGRESS;
+    BACKUP_BEFORE_DELETE_IN_PROGRESS -> BACKUP_BEFORE_DELETE_COMPLETED;
+    BACKUP_BEFORE_DELETE_IN_PROGRESS -> STARTING;
+    BACKUP_BEFORE_DELETE_COMPLETED -> DELETION_REQUESTED;
+    STARTING -> BACKING_UP;
+    BACKING_UP -> COMPLETED;
 }
