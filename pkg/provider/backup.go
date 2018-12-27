@@ -1,5 +1,9 @@
 package provider
 
+import (
+	dbv1alpha1 "github.com/isotoma/db-operator/pkg/apis/db/v1alpha1"
+)
+
 type BackupPhase string
 
 const (
@@ -10,7 +14,11 @@ const (
 
 // Backup represents a backup
 type Backup struct {
-	Phase BackupPhase
+	Namespace string
+	Name      string
+	backup    dbv1alpha1.Backup
+	Database  Database
+	Phase     BackupPhase
 }
 
 // SetPhase sets the phase on the underlying db-operator resource

@@ -66,3 +66,19 @@ will be set:
 
 You should not need to read these directly - the provider API will use them directly.
 
+### The database resource
+
+Example:
+
+    provider: postgresql
+    connect:
+      host: db.example.com
+      port: 5432
+    credentials:
+      username:
+        value: postgres
+      password:
+        valueFrom:
+          secretKeyRef:
+            name: dbpassword
+            key: password

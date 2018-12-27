@@ -4,19 +4,69 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// SecretKeyRef references to a kubernetes secret key
+type SecretKeyRef struct {
+	Name string `json:"name"`
+	Key  string `json:"key"`
+}
+
+// AwsSecretRef references a secret in AWS Secrets Manager
+type AwsSecretRef struct {
+	ARN string `json:"arn"`
+	Key string `json:"key"`
+}
+
+// ValueFrom supports retrieving a credential from elsewhere
+type ValueFrom struct {
+	SecretKeyRef    SecretKeyRef `json:"secretKeyRef"`
+	AwsSecretKeyRef AwsSecretRef `json:"awsSecretKeyRef"`
+}
+
+// Credential supports either a literal value, or retrieving from elsewhere
+type Credential struct {
+	Value     string    `json:"value"`
+	ValueFrom ValueFrom `json:"valueFrom"`
+}
+
+// Credentials are literal credentials provided in the database resource
+type Credentials struct {
+	Username Credential `json:"username"`
+	Password Credential `json:"password"`
+}
+
+// S3Backup provides destination storage for S3 backups
+type S3Backup struct {
+	Region             string `json:"region"`
+	Bucket             string `json:"bucket"`
+	Prefix             string `json:"prefix"`
+	AwsAccessKeyID     string `json:"awsAccessKeyId"`
+	AwsSecretAccessKey string `json:"awsSecretAccessKey"`
+}
+
+// BackupTo may support other destinations than S3
+type BackupTo struct {
+	S3 S3Backup `json:"s3"`
+}
+
+// AwsCredentials are literal AWS credentials used for backups and secrets
+type AwsCredentials struct {
+	Region          string `json:"region"`
+	AccessKeyID     string `json:"accessKeyId"`
+	SecretAccessKey string `json:"secretAccessKey"`
+}
 
 // DatabaseSpec defines the desired state of Database
 type DatabaseSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
+	Provider       string            `json:"provider"`
+	Connect        map[string]string `json:"connect"`
+	Credentials    Credentials       `json:"credentials"`
+	BackupTo       BackupTo          `json:"backupTo,omitempty"`
+	AwsCredentials AwsCredentials    `json:"awsCredentials,omitempty"`
 }
 
 // DatabaseStatus defines the observed state of Database
 type DatabaseStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
+	Phase string `json:"phase"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

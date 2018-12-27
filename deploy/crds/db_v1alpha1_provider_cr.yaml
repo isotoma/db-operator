@@ -1,0 +1,7 @@
+apiVersion: db.isotoma.com/v1alpha1
+kind: Provider
+metadata:
+  name: example-provider
+spec:
+  # Add fields here
+  size: 3
