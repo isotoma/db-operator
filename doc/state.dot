@@ -1,26 +1,26 @@
 digraph {
   {
     GONE [shape=point]
-    STARTING [shape=diamond]
-    BACKING_UP [shape=diamond]
-    COMPLETED [shape=diamond]
+    Starting [shape=diamond]
+    BackingUp [shape=diamond]
+    Completed [shape=diamond]
   }
-    GONE -> CREATING;
-    CREATING -> CREATED;
-    CREATED -> BACKUP_REQUESTED;
-    BACKUP_REQUESTED -> BACKUP_IN_PROGRESS;
-    BACKUP_IN_PROGRESS -> STARTING;
-    BACKUP_IN_PROGRESS -> BACKUP_COMPLETED;
-    BACKUP_COMPLETED -> CREATED;
-    CREATED -> DELETION_REQUESTED;
-    DELETION_REQUESTED -> DELETION_IN_PROGRESS;
-    DELETION_IN_PROGRESS -> DELETED;
-    DELETED -> GONE;
-    CREATED -> BACKUP_BEFORE_DELETE_REQUESTED;
-    BACKUP_BEFORE_DELETE_REQUESTED -> BACKUP_BEFORE_DELETE_IN_PROGRESS;
-    BACKUP_BEFORE_DELETE_IN_PROGRESS -> BACKUP_BEFORE_DELETE_COMPLETED;
-    BACKUP_BEFORE_DELETE_IN_PROGRESS -> STARTING;
-    BACKUP_BEFORE_DELETE_COMPLETED -> DELETION_REQUESTED;
-    STARTING -> BACKING_UP;
-    BACKING_UP -> COMPLETED;
+    GONE -> Creating;
+    Creating -> Created;
+    Created -> BackupRequested;
+    BackupRequested -> BackupInProgress;
+    BackupInProgress -> Starting;
+    BackupInProgress -> BackupCompleted;
+    BackupCompleted -> Created;
+    Created -> DeletionRequested;
+    DeletionRequested -> DeletionInProgress;
+    DeletionInProgress -> Deleted;
+    Deleted -> GONE;
+    Created -> BackupBeforeDeleteRequested;
+    BackupBeforeDeleteRequested -> BackupBeforeDeleteInProgress;
+    BackupBeforeDeleteInProgress -> BackupBeforeDeleteCompleted;
+    BackupBeforeDeleteInProgress -> Starting;
+    BackupBeforeDeleteCompleted -> DeletionRequested;
+    Starting -> BackingUp;
+    BackingUp -> Completed;
 }
