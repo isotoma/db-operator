@@ -1,11 +1,5 @@
 package provider
 
-import (
-	dbv1alpha1 "github.com/isotoma/db-operator/pkg/apis/db/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
 type DatabasePhase string
 
 const (
@@ -22,15 +16,29 @@ const (
 	BackupBeforeDeleteCompleted  DatabasePhase = "BackupBeforeDeleteCompleted"
 )
 
-type Database struct {
-	Namespace string
-	Name      string
-	k8sClient client.Client
-	database  dbv1alpha1.Database
-	secret    corev1.Secret
-	Phase     DatabasePhase
+type BackupDestination int
+
+const (
+	BackupNone BackupDestination = 0
+	BackupToS3 BackupDestination = 1
+)
+
+type S3Backup struct {
+	Region string
+	Bucket string
+	Prefix string
 }
 
-func (d *Database) SetPhase(Phase DatabasePhase) error {
+type Database struct {
+	Provider          *Provider
+	Connection        map[string]string
+	Username          string
+	Password          string
+	BackupDestination BackupDestination
+	S3Backup          *S3Backup
+	Phase             DatabasePhase
+}
+
+func (d *Database) SetPhase(phase DatabasePhase) error {
 	return nil
 }

@@ -60,9 +60,9 @@ When a backup resource is first created it has no `state` status.
 Your provider will be launched in a pod by a job. The following environment variables
 will be set:
 
-- **PGOPERATOR_DATABASE** The name of the database resource
-- **PGOPERATOR_NAMESPACE** The namespace of the resources. This will also be the namespace in which the job runs.
-- **PGOPERATOR_BACKUP** The name of the backup resource, if required
+- **DB_OPERATOR_DATABASE** The name of the database resource
+- **DB_OPERATOR_NAMESPACE** The namespace of the resources. This will also be the namespace in which the job runs.
+- **DB_OPERATOR_BACKUP** The name of the backup resource, if required
 
 You should not need to read these directly - the provider API will use them directly.
 
@@ -82,3 +82,10 @@ Example:
           secretKeyRef:
             name: dbpassword
             key: password
+    backupTo:
+      S3:
+        Region: eu-west-1
+        Bucket: my-backup-bucket
+        Prefix: backups/
+    
+
