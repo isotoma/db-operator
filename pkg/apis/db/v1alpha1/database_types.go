@@ -4,6 +4,22 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type DatabasePhase string
+
+const (
+	Creating                     DatabasePhase = "Creating"
+	Created                      DatabasePhase = "Created"
+	BackupRequested              DatabasePhase = "BackupRequested"
+	BackupInProgress             DatabasePhase = "BackupInProgress"
+	BackupCompleted              DatabasePhase = "BackupCompleted"
+	DeletionRequested            DatabasePhase = "DeletionRequested"
+	DeletionInProgress           DatabasePhase = "DeletionInProgress"
+	Deleted                      DatabasePhase = "Deleted"
+	BackupBeforeDeleteRequested  DatabasePhase = "BackupBeforeDeleteRequested"
+	BackupBeforeDeleteInProgress DatabasePhase = "BackupBeforeDeleteInProgress"
+	BackupBeforeDeleteCompleted  DatabasePhase = "BackupBeforeDeleteCompleted"
+)
+
 // SecretKeyRef references to a kubernetes secret key
 type SecretKeyRef struct {
 	Name string `json:"name"`
@@ -36,11 +52,9 @@ type Credentials struct {
 
 // S3Backup provides destination storage for S3 backups
 type S3Backup struct {
-	Region             string `json:"region"`
-	Bucket             string `json:"bucket"`
-	Prefix             string `json:"prefix"`
-	AwsAccessKeyID     string `json:"awsAccessKeyId"`
-	AwsSecretAccessKey string `json:"awsSecretAccessKey"`
+	Region string `json:"region"`
+	Bucket string `json:"bucket"`
+	Prefix string `json:"prefix"`
 }
 
 // BackupTo may support other destinations than S3
@@ -58,6 +72,7 @@ type AwsCredentials struct {
 // DatabaseSpec defines the desired state of Database
 type DatabaseSpec struct {
 	Provider       string            `json:"provider"`
+	Name           string            `json:"name"`
 	Connect        map[string]string `json:"connect"`
 	Credentials    Credentials       `json:"credentials"`
 	BackupTo       BackupTo          `json:"backupTo,omitempty"`
@@ -66,7 +81,7 @@ type DatabaseSpec struct {
 
 // DatabaseStatus defines the observed state of Database
 type DatabaseStatus struct {
-	Phase string `json:"phase"`
+	Phase DatabasePhase `json:"phase"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
