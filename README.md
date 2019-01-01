@@ -25,10 +25,10 @@ database owned by that user.  Implementations are provided for PostgreSQL and My
 
 #### Database Phases
 
-When a database resource is first created it has no `state` status. The operator delegates state changes to a `provider` which makes changes to the state as appropriate, using the `db-operator provider API`.
+When a database resource is first created it has no `state` status. The operator delegates state changes to a `driver` which makes changes to the state as appropriate, using the `db-operator driver API`.
 
-- **Creating**: The `provider` has begun creating the database
-- **Created**: The `provider` has created the database and it is ready for use. A secret now exists, with the same name and namespace as the database, containing everything required to use it.
+- **Creating**: The `driver` has begun creating the database
+- **Created**: The `driver` has created the database and it is ready for use. A secret now exists, with the same name and namespace as the database, containing everything required to use it.
 - **BackupRequested**: A backup of this database has been requested but has not yet begun
 - **BackupInProgress**: A backup is in progress. Only one backup may be active at any one time.
 - **BackupCompleted**: Backup has been completed. Will then move back to CREATED.
@@ -47,30 +47,33 @@ This is a backup of a database, stored on some remote object store such as S3.
 
 When a backup resource is first created it has no `state` status.
 
-- **Starting**: The `provider` is beginning a backup.
-- **BackingUp**: The `provider` is backing up. The Status will also include a destination attribute showing where the backup is being written to. It may also optionally include a progress.
+- **Starting**: The `driver` is beginning a backup.
+- **BackingUp**: The `driver` is backing up. The Status will also include a destination attribute showing where the backup is being written to. It may also optionally include a progress.
 - **Completed**: The backup has completed.  The resource will not be deleted automatically.
 
-## Providers
+## Drivers
 
-**Providers** actually implement the creation, deletion and backing up of a database. How they do this is implementation specific. The `db-operator` *Provider API* contains everything required to interact with the custom resources used.
+**Drivers** actually implement the creation, deletion and backing up of a database. How they do this is implementation specific. The `db-operator` *Driver API* contains everything required to interact with the custom resources used.
 
-### Provider API
+### Driver API
 
-Your provider will be launched in a pod by a job. The following environment variables
+Your driver will be launched in a pod by a job. The following environment variables
 will be set:
 
 - **DB_OPERATOR_DATABASE** The name of the database resource
 - **DB_OPERATOR_NAMESPACE** The namespace of the resources. This will also be the namespace in which the job runs.
 - **DB_OPERATOR_BACKUP** The name of the backup resource, if required
+- **DB_OPERATOR_OPERATION** The operation to perform
 
-You should not need to read these directly - the provider API will use them directly.
+#### Drivers
+
+The driver 
 
 ### The database resource
 
 Example:
 
-    provider: postgresql
+    driver: postgresql
     connect:
       host: db.example.com
       port: 5432

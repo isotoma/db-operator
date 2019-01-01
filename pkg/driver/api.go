@@ -1,4 +1,4 @@
-package provider
+package driver
 
 import (
 	"context"
@@ -19,7 +19,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-type Provider struct {
+type Container struct {
 	k8sclient client.Client
 	backup    dbv1alpha1.Backup
 	database  dbv1alpha1.Database
@@ -50,7 +50,7 @@ type Driver struct {
 var log = logf.Log.WithName("provider-api")
 
 // RegisterDriver registers your driver with the provider
-func (p *Provider) RegisterDriver(d *Driver) error {
+func (p *Container) RegisterDriver(d *Driver) error {
 	if d.Name == "" {
 		return fmt.Errorf("No name provided for driver")
 	}
@@ -61,7 +61,7 @@ func (p *Provider) RegisterDriver(d *Driver) error {
 	return nil
 }
 
-func (p *Provider) connect() error {
+func (p *Container) connect() error {
 	log.Info("Connecting to Kubernetes")
 	cfg := config.GetConfigOrDie()
 	managerOptions := manager.Options{}
@@ -88,11 +88,11 @@ func (p *Provider) connect() error {
 	return nil
 }
 
-func (p *Provider) getResource(name string, dest runtime.Object) error {
+func (p *Container) getResource(name string, dest runtime.Object) error {
 	return p.k8sclient.Get(context.TODO(), types.NamespacedName{Namespace: p.Namespace, Name: name}, dest)
 }
 
-func (p *Provider) setup() error {
+func (p *Container) setup() error {
 	// This will be populated using the downward API
 	if p.Namespace == "" {
 		p.Namespace = os.Getenv("DB_OPERATOR_NAMESPACE")
@@ -130,15 +130,15 @@ func (p *Provider) setup() error {
 	return nil
 }
 
-func (p *Provider) readFromKubernetesSecret(s dbv1alpha1.SecretKeyRef) (string, error) {
+func (p *Container) readFromKubernetesSecret(s dbv1alpha1.SecretKeyRef) (string, error) {
 	return "", nil
 }
 
-func (p *Provider) readFromAwsSecret(s dbv1alpha1.AwsSecretRef) (string, error) {
+func (p *Container) readFromAwsSecret(s dbv1alpha1.AwsSecretRef) (string, error) {
 	return "", nil
 }
 
-func (p *Provider) getCredential(cred dbv1alpha1.Credential) (string, error) {
+func (p *Container) getCredential(cred dbv1alpha1.Credential) (string, error) {
 	if cred.Value != "" {
 		return "", nil
 	}
@@ -151,7 +151,7 @@ func (p *Provider) getCredential(cred dbv1alpha1.Credential) (string, error) {
 	return "", fmt.Errorf("No credentials provided")
 }
 
-func (p *Provider) getDriver() (*Driver, error) {
+func (p *Container) getDriver() (*Driver, error) {
 	spec := p.database.Spec
 	driver := p.drivers[spec.Provider]
 	driver.Connect = spec.Connect
@@ -169,7 +169,7 @@ func (p *Provider) getDriver() (*Driver, error) {
 	return driver, nil
 }
 
-func (p *Provider) reconcileDatabase() error {
+func (p *Container) reconcileDatabase() error {
 	phase := p.database.Status.Phase
 	driver, err := p.getDriver()
 	if err != nil {
@@ -204,13 +204,13 @@ func (p *Provider) reconcileDatabase() error {
 	return nil
 }
 
-func (p *Provider) reconcileBackup() error {
+func (p *Container) reconcileBackup() error {
 	return nil
 }
 
 // Run the provider, which will reconcile the provided database/backup
 // using the registered drivers
-func (p *Provider) Run() error {
+func (p *Container) Run() error {
 	if err := p.setup(); err != nil {
 		return err
 	}
