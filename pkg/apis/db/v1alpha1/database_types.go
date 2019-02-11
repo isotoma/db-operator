@@ -71,12 +71,13 @@ type AwsCredentials struct {
 
 // DatabaseSpec defines the desired state of Database
 type DatabaseSpec struct {
-	Provider       string            `json:"provider"`
-	Name           string            `json:"name"`
-	Connect        map[string]string `json:"connect"`
-	Credentials    Credentials       `json:"credentials"`
-	BackupTo       BackupTo          `json:"backupTo,omitempty"`
-	AwsCredentials AwsCredentials    `json:"awsCredentials,omitempty"`
+	Provider          string            `json:"provider"`
+	Name              string            `json:"name"`
+	Connect           map[string]string `json:"connect"`
+	MasterCredentials Credentials       `json:"masterCredentials"`
+	UserCredentials   Credentials       `json:"userCredentials"`
+	BackupTo          BackupTo          `json:"backupTo,omitempty"`
+	AwsCredentials    AwsCredentials    `json:"awsCredentials,omitempty"`
 }
 
 // DatabaseStatus defines the observed state of Database

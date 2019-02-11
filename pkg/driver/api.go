@@ -40,10 +40,11 @@ type Credentials struct {
 }
 
 type Driver struct {
-	Name     string
-	Connect  ConnectionDetails
-	Master   Credentials
-	Database Credentials
+	Name     string             // name of the driver
+	Connect  ConnectionDetails  // any additional connection details (eg port, host, etc)
+	Master   Credentials        // credentials that allow access to create/backup/drop
+	Database Credentials        // credentials to be created that have access to the database
+	DBName   string             // the name of the database
 	Create   func(*Driver) error
 	Drop     func(*Driver) error
 	Backup   func(*Driver, *io.Writer) error
@@ -157,17 +158,27 @@ func (p *Container) getDriver() (*Driver, error) {
 	spec := p.database.Spec
 	driver := p.drivers[spec.Provider]
 	driver.Connect = spec.Connect
-	username, err := p.getCredential(spec.Credentials.Username)
+	masterUsername, err := p.getCredential(spec.MasterCredentials.Username)
 	if err != nil {
 		return nil, err
 	}
-	password, err := p.getCredential(spec.Credentials.Password)
+	masterPassword, err := p.getCredential(spec.MasterCredentials.Password)
 	if err != nil {
 		return nil, err
 	}
-	driver.Master.Username = username
-	driver.Master.Password = password
-	driver.Database.Username = spec.Name
+	driver.Master.Username = masterUsername
+	driver.Master.Password = masterPassword
+	userUsername, err := p.getCredential(spec.UserCredentials.Username)
+	if err != nil {
+		return nil, err
+	}
+	userPassword, err := p.getCredential(spec.UserCredentials.Password)
+	if err != nil {
+		return nil, err
+	}
+	driver.Database.Username = userUsername
+	driver.Database.Password = userPassword
+	driver.DBName = spec.Name
 	return driver, nil
 }
 
