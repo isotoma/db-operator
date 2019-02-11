@@ -55,23 +55,34 @@ When a backup resource is first created it has no `state` status.
 
 **Drivers** actually implement the creation, deletion and backing up of a database. How they do this is implementation specific. The `db-operator` *Driver API* contains everything required to interact with the custom resources used.
 
+### Separation of concerns
+
+`db-operator` determines whether or not a job needs to be created, based on the spec and status of the database or backup resource.
+
+If a job is to be created then it creates the job, but does not itself make any changes to the resources.
+
+Note that we trust that the jobs system works and will continue to retry on error, so the operator does not take on this responsibility.
+
+The driver makes all of the changes to the resource, based on progress with reconciliation.
+
+Note that driver authors do not need to know anything about kubernetes or making resource changes - this is abstracted away by the `Driver API`.
+
 ### Driver API
 
-Your driver will be launched in a pod by a job. The following environment variables
-will be set:
+Drivers are launched in a pod by a job. The following environment variables are set:
 
 - **DB_OPERATOR_DATABASE** The name of the database resource
 - **DB_OPERATOR_NAMESPACE** The namespace of the resources. This will also be the namespace in which the job runs.
 - **DB_OPERATOR_BACKUP** The name of the backup resource, if required
 - **DB_OPERATOR_OPERATION** The operation to perform
 
-#### Drivers
+The Driver API provides a mechanism for drivers to register with a container, which then calls driver methods as required to achieve reconciliation.
 
-The driver 
+Driver methods MUST be idemopotent, since they may be executed more than once in a case where state is uncertain, due to failure during a previous reconciliation.
 
 ### The database resource
 
-Example:
+Example spec:
 
     driver: postgresql
     connect:
@@ -90,5 +101,3 @@ Example:
         Region: eu-west-1
         Bucket: my-backup-bucket
         Prefix: backups/
-    
-
