@@ -142,7 +142,7 @@ func (p *Container) readFromAwsSecret(s dbv1alpha1.AwsSecretRef) (string, error)
 
 func (p *Container) getCredential(cred dbv1alpha1.Credential) (string, error) {
 	if cred.Value != "" {
-		return "", nil
+		return cred.Value, nil
 	}
 	if cred.ValueFrom.SecretKeyRef.Name != "" {
 		return p.readFromKubernetesSecret(cred.ValueFrom.SecretKeyRef)
