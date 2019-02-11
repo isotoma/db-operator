@@ -16,7 +16,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
+	"go.uber.org/zap"
 )
 
 type Container struct {
@@ -47,7 +49,7 @@ type Driver struct {
 	Backup   func(*Driver, *io.Writer) error
 }
 
-var log = logf.Log.WithName("provider-api")
+var log logr.Logger
 
 // RegisterDriver registers your driver with the provider
 func (p *Container) RegisterDriver(d *Driver) error {
@@ -211,6 +213,12 @@ func (p *Container) reconcileBackup() error {
 // Run the provider, which will reconcile the provided database/backup
 // using the registered drivers
 func (p *Container) Run() error {
+	zlog, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+	log = zapr.NewLogger(zlog).WithName("db-operator")
+
 	if err := p.setup(); err != nil {
 		return err
 	}
