@@ -2,6 +2,8 @@ package database
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	dbv1alpha1 "github.com/isotoma/db-operator/pkg/apis/db/v1alpha1"
 	"github.com/isotoma/db-operator/pkg/util"
@@ -15,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 var (
@@ -75,12 +78,6 @@ type ReconcileDatabase struct {
 	scheme *runtime.Scheme
 }
 
-// UpdatePhase updates the phase of the database to the one requested
-func (r *ReconcileDatabase) UpdatePhase(instance *dbv1alpha1.Database, phase dbv1alpha1.DatabasePhase) error {
-	instance.Status.Phase = phase
-	return r.client.Update(context.TODO(), instance)
-}
-
 // Reconcile reads that state of the cluster for a Database object and makes changes based on the state read
 // and what is in the Database.Spec
 // Note:
@@ -90,59 +87,96 @@ func (r *ReconcileDatabase) Reconcile(request reconcile.Request) (reconcile.Resu
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Database")
 
+	serviceAccountName := os.Getenv("SERVICE_ACCOUNT_NAME")
+
 	// Fetch the Database instance
 	instance := &dbv1alpha1.Database{}
 	if err := r.client.Get(context.TODO(), request.NamespacedName, instance); err != nil {
 		if errors.IsNotFound(err) {
+			reqLogger.Error(err, "Database not found")
 			return reconcile.Result{}, nil
 		}
+		reqLogger.Error(err, "Error finding database")
+		return reconcile.Result{}, err
+	}
+	provider := &dbv1alpha1.Provider{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: instance.Spec.Provider}, provider); err != nil {
+		reqLogger.Error(err, "Error finding provider")
 		return reconcile.Result{}, err
 	}
 
+	if instance.ObjectMeta.DeletionTimestamp != nil {
+		reqLogger.Info("DeletionTimestamp is set, handling finalization and deletion")
+		if (instance.Status.Phase == dbv1alpha1.BackupBeforeDeleteRequested) || (instance.Status.Phase == dbv1alpha1.BackupBeforeDeleteInProgress) || (instance.Status.Phase == dbv1alpha1.DeletionRequested) || (instance.Status.Phase == dbv1alpha1.DeletionInProgress) || (instance.Status.Phase == dbv1alpha1.Deleted) {
+			// These are the statuses we want it to be in
+			// while handling deletion. Continue and do
+			// the usual reconciling
+		} else if (instance.Status.Phase != dbv1alpha1.BackupBeforeDeleteCompleted) {
+			err := util.PatchDatabasePhase(r.client, instance, dbv1alpha1.BackupBeforeDeleteRequested)
+			if err != nil {
+				reqLogger.Error(err, "Error patching database to BackupBeforeDeleteRequested")
+				return reconcile.Result{}, err
+			}
+			return reconcile.Result{}, nil
+		}
+	}
+
+	reqLogger.Info(fmt.Sprintf("Current phase: %s", instance.Status.Phase))
+
 	switch {
 	case instance.Status.Phase == "":
-		if err := r.UpdatePhase(instance, dbv1alpha1.Creating); err != nil {
+		err := r.Create(instance, provider, serviceAccountName)
+		if err != nil {
 			return reconcile.Result{}, err
-
-		}
-		c := r.Create(instance)
-		if err := <-c; err != nil {
-			return reconcile.Result{}, err
-		}
-		if err := r.UpdatePhase(instance, dbv1alpha1.Created); err != nil {
-			return reconcile.Result{}, err
-
 		}
 		return reconcile.Result{}, nil
-	case instance.Status.Phase == "Created":
+	case instance.Status.Phase == dbv1alpha1.Created:
 		// the driver has completed the creation process. We need to add a
-		// finalizer so we have the opportunity to drop/backup the database
+		// finalizer so we have the opportunity to backup+drop the database
 		// if this resource is deleted
 		if util.AddFinalizer(&instance.ObjectMeta, finalizerName) {
 			if err := r.client.Update(context.TODO(), instance); err != nil {
+				log.Error(err, "Error adding finalizer")
 				return reconcile.Result{}, err
 			}
 		}
-		if instance.ObjectMeta.DeletionTimestamp != nil {
-			// decide whether to back up first or just delete
-			if instance.Spec.BackupTo.S3.Bucket != "" {
-				if err := r.UpdatePhase(instance, dbv1alpha1.BackupBeforeDeleteRequested); err != nil {
-					return reconcile.Result{}, err
-				}
-				err := r.BackupThenDrop(instance)
-				return reconcile.Result{}, err
-			}
-			// start a drop job, which cycles the Phase through Deleting to Deleted
-
+		return reconcile.Result{}, nil
+	case instance.Status.Phase == dbv1alpha1.DeletionRequested:
+		err := r.Drop(instance, provider, serviceAccountName)
+		if err != nil {
+			return reconcile.Result{}, err
 		}
-	case instance.Status.Phase == "Deleted":
-		// The driver has completed the deletion process, so we can remove
-		// the finalizer and allow the resource to be finally deleted
+		return reconcile.Result{}, nil
+	case instance.Status.Phase == dbv1alpha1.Deleted:
+		reqLogger.Info("Removing the finalizer to allow delete of the resource")
 		if util.RemoveFinalizer(&instance.ObjectMeta, finalizerName) {
 			if err := r.client.Update(context.TODO(), instance); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
+		return reconcile.Result{}, nil
+	case instance.Status.Phase == dbv1alpha1.BackupRequested:
+		err := r.Backup(instance, provider)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, nil
+	case instance.Status.Phase == dbv1alpha1.BackupBeforeDeleteRequested:
+		err := r.BackupThenDelete(instance, provider)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, nil
+	case instance.Status.Phase == dbv1alpha1.BackupBeforeDeleteCompleted:
+		// The driver has completed the deletion process, so we can remove
+		// the finalizer and allow the resource to be finally deleted
+		reqLogger.Info("Removing the finalizer to allow delete of the resource")
+		if util.RemoveFinalizer(&instance.ObjectMeta, finalizerName) {
+			if err := r.client.Update(context.TODO(), instance); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+		return reconcile.Result{}, nil
 	}
 	return reconcile.Result{}, nil
 }
