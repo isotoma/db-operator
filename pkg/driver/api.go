@@ -182,6 +182,17 @@ func (p *Container) getDriver() (*Driver, error) {
 	return driver, nil
 }
 
+func PatchDatabasePhase(k8sclient client.Client, database *dbv1alpha1.Database, phase dbv1alpha1.DatabasePhase) error {
+	database.Status.Phase = phase
+	log.Info(fmt.Sprintf("Patching %s to %s", database.Name, phase))
+	err := k8sclient.Update(context.TODO(), database)
+	if err != nil {
+		log.Error(err, "Error making update")
+		return err
+	}
+	return nil
+}
+
 func (p *Container) reconcileDatabase() error {
 	phase := p.database.Status.Phase
 	driver, err := p.getDriver()
@@ -189,30 +200,94 @@ func (p *Container) reconcileDatabase() error {
 		return err
 	}
 
+	log.Info(fmt.Sprintf("Current phase is %s", phase))
+
 	switch {
 	case phase == "":
+		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Creating)
+		if err != nil {
+			return err
+		}
 		err = driver.Create(driver)
-		// change state to creating and call Create
-		// if it terminates without error then move state to Created
+		if err != nil {
+			return err
+		}
+		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Created)
+		if err != nil {
+			return err
+		}
 	case phase == dbv1alpha1.Creating:
-		// We've been terminated during a creation
-		// call Create again
-		// if it terminates without error then move state to Created
+		err = driver.Create(driver)
+		if err != nil {
+			return err
+		}
+		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Created)
+		if err != nil {
+			return err
+		}
 	case phase == dbv1alpha1.Created:
-		// We don't need to do anything
+		log.Info(fmt.Sprintf("Nothing to do"))
 	case phase == dbv1alpha1.DeletionRequested:
-		// do the delete
+		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.DeletionInProgress)
+		if err != nil {
+			return err
+		}
+		err = driver.Drop(driver)
+		if err != nil {
+			return err
+		}
+		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Deleted)
+		if err != nil {
+			return err
+		}
 	case phase == dbv1alpha1.DeletionInProgress:
-		// check status
+		err = driver.Drop(driver)
+		if err != nil {
+			return err
+		}
+		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Deleted)
+		if err != nil {
+			return err
+		}
 	case phase == dbv1alpha1.Deleted:
-		// do nothing
+		log.Info(fmt.Sprintf("Nothing to do"))
 	case phase == dbv1alpha1.BackupBeforeDeleteRequested:
-		// perform the backup
-	case phase == dbv1alpha1.BackupBeforeDeleteInProgress:
-		// check status
-	case phase == dbv1alpha1.BackupBeforeDeleteCompleted:
-		// do nothing
+		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.BackupBeforeDeleteInProgress)
+		if err != nil {
+			return err
+		}
+		// TODO: decide how to wrangle the writer
 
+		// err = driver.Backup(driver, writer[?])
+		// if err != nil {
+		// 	return err
+		// }
+
+		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.BackupBeforeDeleteCompleted)
+		if err != nil {
+			return err
+		}
+
+		// TODO: should this then do the dropping too?
+
+	case phase == dbv1alpha1.BackupBeforeDeleteInProgress:
+		// TODO: more checking, or just initiate the backup-the-drop?
+		// TODO: decide how to wrangle the writer
+
+		// err = driver.Backup(driver, writer[?])
+		// if err != nil {
+		// 	return err
+		// }
+
+		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.BackupBeforeDeleteCompleted)
+		if err != nil {
+			return err
+		}
+
+		// TODO: should this then do the dropping too?
+
+	case phase == dbv1alpha1.BackupBeforeDeleteCompleted:
+		log.Info(fmt.Sprintf("Nothing to do"))
 	}
 	return nil
 }
