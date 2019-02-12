@@ -88,6 +88,7 @@ func (p *Container) connect() error {
 	mgr.GetCache().WaitForCacheSync(stopChan)
 	log.Info("Getting client")
 	p.k8sclient = mgr.GetClient()
+	log.Info("Got client")
 	return nil
 }
 
@@ -115,7 +116,9 @@ func (p *Container) setup() error {
 	if err := p.connect(); err != nil {
 		return err
 	}
+	log.Info("Connected")
 	if p.Database != "" {
+		log.Info("Getting database")
 		if err := p.getResource(p.Database, &p.database); err != nil {
 			return err
 		}
@@ -126,6 +129,7 @@ func (p *Container) setup() error {
 		}
 	}
 	if p.Backup != "" {
+		log.Info("Getting backup")
 		if err := p.getResource(p.Backup, &p.backup); err != nil {
 			return err
 		}
@@ -158,6 +162,8 @@ func (p *Container) getDriver() (*Driver, error) {
 	spec := p.database.Spec
 	driver := p.drivers[spec.Provider]
 	driver.Connect = spec.Connect
+
+	log.Info("Getting master credentials")
 	masterUsername, err := p.getCredential(spec.MasterCredentials.Username)
 	if err != nil {
 		return nil, err
@@ -168,6 +174,8 @@ func (p *Container) getDriver() (*Driver, error) {
 	}
 	driver.Master.Username = masterUsername
 	driver.Master.Password = masterPassword
+
+	log.Info("Getting user credentials")
 	userUsername, err := p.getCredential(spec.UserCredentials.Username)
 	if err != nil {
 		return nil, err
@@ -179,6 +187,7 @@ func (p *Container) getDriver() (*Driver, error) {
 	driver.Database.Username = userUsername
 	driver.Database.Password = userPassword
 	driver.DBName = spec.Name
+
 	return driver, nil
 }
 
@@ -195,10 +204,12 @@ func PatchDatabasePhase(k8sclient client.Client, database *dbv1alpha1.Database, 
 
 func (p *Container) reconcileDatabase() error {
 	phase := p.database.Status.Phase
+	log.Info("Getting driver")
 	driver, err := p.getDriver()
 	if err != nil {
 		return err
 	}
+	log.Info("Got driver")
 
 	log.Info(fmt.Sprintf("Current phase is %s", phase))
 
@@ -308,10 +319,13 @@ func (p *Container) Run() error {
 	if err := p.setup(); err != nil {
 		return err
 	}
+	log.Info("Setup done")
 	if p.Database != "" {
+		log.Info("Reconciling database")
 		return p.reconcileDatabase()
 	}
 	if p.Backup != "" {
+		log.Info("Reconciling backup")
 		return p.reconcileBackup()
 	}
 	return nil

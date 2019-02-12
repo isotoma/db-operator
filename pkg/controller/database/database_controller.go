@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"fmt"
 
 	dbv1alpha1 "github.com/isotoma/db-operator/pkg/apis/db/v1alpha1"
 	"github.com/isotoma/db-operator/pkg/util"
@@ -15,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 var (
@@ -76,10 +78,10 @@ type ReconcileDatabase struct {
 }
 
 // UpdatePhase updates the phase of the database to the one requested
-func (r *ReconcileDatabase) UpdatePhase(instance *dbv1alpha1.Database, phase dbv1alpha1.DatabasePhase) error {
-	instance.Status.Phase = phase
-	return r.client.Update(context.TODO(), instance)
-}
+// func (r *ReconcileDatabase) UpdatePhase(instance *dbv1alpha1.Database, phase dbv1alpha1.DatabasePhase) error {
+// 	instance.Status.Phase = phase
+// 	return r.client.Update(context.TODO(), instance)
+// }
 
 // Reconcile reads that state of the cluster for a Database object and makes changes based on the state read
 // and what is in the Database.Spec
@@ -90,29 +92,44 @@ func (r *ReconcileDatabase) Reconcile(request reconcile.Request) (reconcile.Resu
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Database")
 
+	// TODO: work out how to pass this in. I think this ought to be an env-var.
+	serviceAccountName := "db-operator-stage"
+
 	// Fetch the Database instance
 	instance := &dbv1alpha1.Database{}
 	if err := r.client.Get(context.TODO(), request.NamespacedName, instance); err != nil {
 		if errors.IsNotFound(err) {
+			reqLogger.Error(err, "Database not found")
 			return reconcile.Result{}, nil
 		}
+		reqLogger.Error(err, "Error finding database")
+		return reconcile.Result{}, err
+	}
+	provider := &dbv1alpha1.Provider{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: instance.Spec.Provider}, provider); err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Error(err, "Provider not found")
+			return reconcile.Result{}, nil
+		}
+		reqLogger.Error(err, "Error finding provider")
 		return reconcile.Result{}, err
 	}
 
+	reqLogger.Info(fmt.Sprintf("Current phase: %s", instance.Status.Phase))
 	switch {
 	case instance.Status.Phase == "":
-		if err := r.UpdatePhase(instance, dbv1alpha1.Creating); err != nil {
-			return reconcile.Result{}, err
+		// if err := r.UpdatePhase(instance, dbv1alpha1.Creating); err != nil {
+		// 	return reconcile.Result{}, err
 
-		}
-		c := r.Create(instance)
+		// }
+		c := r.Create(instance, provider, serviceAccountName)
 		if err := <-c; err != nil {
 			return reconcile.Result{}, err
 		}
-		if err := r.UpdatePhase(instance, dbv1alpha1.Created); err != nil {
-			return reconcile.Result{}, err
+		// if err := r.UpdatePhase(instance, dbv1alpha1.Created); err != nil {
+		// 	return reconcile.Result{}, err
 
-		}
+		// }
 		return reconcile.Result{}, nil
 	case instance.Status.Phase == "Created":
 		// the driver has completed the creation process. We need to add a
@@ -126,10 +143,10 @@ func (r *ReconcileDatabase) Reconcile(request reconcile.Request) (reconcile.Resu
 		if instance.ObjectMeta.DeletionTimestamp != nil {
 			// decide whether to back up first or just delete
 			if instance.Spec.BackupTo.S3.Bucket != "" {
-				if err := r.UpdatePhase(instance, dbv1alpha1.BackupBeforeDeleteRequested); err != nil {
-					return reconcile.Result{}, err
-				}
-				err := <- r.BackupThenDrop(instance)
+				// if err := r.UpdatePhase(instance, dbv1alpha1.BackupBeforeDeleteRequested); err != nil {
+				// 	return reconcile.Result{}, err
+				// }
+				err := <- r.BackupThenDrop(instance, provider, serviceAccountName)
 				return reconcile.Result{}, err
 			}
 			// start a drop job, which cycles the Phase through Deleting to Deleted

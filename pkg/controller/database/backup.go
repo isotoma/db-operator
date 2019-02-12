@@ -37,7 +37,7 @@ func (r *ReconcileDatabase) createBackupResource(instance *dbv1alpha1.Database) 
 	return backup, nil
 }
 
-func (r *ReconcileDatabase) blockUntilCompleted(Namespace, Name string) error {
+func (r *ReconcileDatabase) blockUntilBackupCompleted(Namespace, Name string) error {
 	delay, _ := time.ParseDuration("30s")
 	for {
 		time.Sleep(delay)
@@ -69,7 +69,7 @@ func (r *ReconcileDatabase) Backup(instance *dbv1alpha1.Database) chan error {
 			c <- err
 			return
 		}
-		c <- r.blockUntilCompleted(backup.Namespace, backup.Name)
+		c <- r.blockUntilBackupCompleted(backup.Namespace, backup.Name)
 	}()
 	return c
 }
