@@ -159,7 +159,9 @@ func (p *Container) getCredential(cred dbv1alpha1.Credential) (string, error) {
 }
 
 func (p *Container) getDriver() (*Driver, error) {
+	log.Info("Getting spec for database")
 	spec := p.database.Spec
+	log.Info(fmt.Sprintf("Getting driver for provider %s", spec.Provider))
 	driver := p.drivers[spec.Provider]
 	driver.Connect = spec.Connect
 
