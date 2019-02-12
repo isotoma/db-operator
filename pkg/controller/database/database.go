@@ -47,6 +47,7 @@ func (r *ReconcileDatabase) createJob(instance *dbv1alpha1.Database, provider *d
 		return err, ""
 	}
 	name := job.ObjectMeta.Name
+	log.Info(fmt.Sprintf("Created job with name %s from generate-name %s", name, instance.Name))
 	return nil, name
 }
 
@@ -80,6 +81,7 @@ func (r *ReconcileDatabase) createBackupJob(instance *dbv1alpha1.Database, backu
 }
 
 func (r *ReconcileDatabase) blockUntilJobCompleted(Namespace, Name string) error {
+	log.Info(fmt.Sprintf("Waiting for job %s in namespace %s to complete", Name, Namespace))
 	delay, _ := time.ParseDuration("30s")
 	for {
 		time.Sleep(delay)
