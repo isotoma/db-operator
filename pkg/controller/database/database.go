@@ -15,7 +15,7 @@ import (
 )
 
 
-func (r *ReconcileDatabase) createJob(instance *dbv1alpha1.Database, provider *dbv1alpha1.Provider, serviceAccountName string, env []corev1.EnvVar, suffix string) error {
+func (r *ReconcileDatabase) createJob(instance *dbv1alpha1.Database, provider *dbv1alpha1.Provider, serviceAccountName string, env []corev1.EnvVar, suffix string) (error, string) {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: instance.Name + "-",
@@ -42,11 +42,16 @@ func (r *ReconcileDatabase) createJob(instance *dbv1alpha1.Database, provider *d
 			},
 		},
 	}
-	return r.client.Create(context.TODO(), job)
+	err := r.client.Create(context.TODO(), job)
+	if err != nil {
+		return err, ""
+	}
+	name := job.ObjectMeta.Name
+	return nil, name
 }
 
 
-func (r *ReconcileDatabase) createDatabaseJob(instance *dbv1alpha1.Database, provider *dbv1alpha1.Provider, serviceAccountName string) error {
+func (r *ReconcileDatabase) createDatabaseJob(instance *dbv1alpha1.Database, provider *dbv1alpha1.Provider, serviceAccountName string) (error, string) {
 	env := []corev1.EnvVar {
 		corev1.EnvVar{
 			Name: "DB_OPERATOR_NAMESPACE",
@@ -60,7 +65,7 @@ func (r *ReconcileDatabase) createDatabaseJob(instance *dbv1alpha1.Database, pro
 	return r.createJob(instance, provider, serviceAccountName, env, "database")
 }
 
-func (r *ReconcileDatabase) createBackupJob(instance *dbv1alpha1.Database, backup *dbv1alpha1.Backup, provider *dbv1alpha1.Provider, serviceAccountName string) error {
+func (r *ReconcileDatabase) createBackupJob(instance *dbv1alpha1.Database, backup *dbv1alpha1.Backup, provider *dbv1alpha1.Provider, serviceAccountName string) (error, string) {
 	env := []corev1.EnvVar {
 		corev1.EnvVar{
 			Name: "DB_OPERATOR_NAMESPACE",
@@ -102,13 +107,13 @@ func (r *ReconcileDatabase) blockUntilJobCompleted(Namespace, Name string) error
 func (r *ReconcileDatabase) Create(instance *dbv1alpha1.Database, provider *dbv1alpha1.Provider, serviceAccountName string) chan error {
 	c := make(chan error)
 	go func() {
-		err := r.createDatabaseJob(instance, provider, serviceAccountName)
+		err, jobName := r.createDatabaseJob(instance, provider, serviceAccountName)
 		if err != nil {
 			c <- err
 			return
 		}
 
-		err = r.blockUntilJobCompleted(instance.Namespace, instance.Name)
+		err = r.blockUntilJobCompleted(instance.Namespace, jobName)
 		if err != nil {
 			c <- err
 			return
@@ -122,13 +127,13 @@ func (r *ReconcileDatabase) Create(instance *dbv1alpha1.Database, provider *dbv1
 func (r *ReconcileDatabase) Drop(instance *dbv1alpha1.Database, provider *dbv1alpha1.Provider, serviceAccountName string) chan error {
 	c := make(chan error)
 	go func() {
-		err := r.createDatabaseJob(instance, provider, serviceAccountName)
+		err, jobName := r.createDatabaseJob(instance, provider, serviceAccountName)
 		if err != nil {
 			c <- err
 			return
 		}
 
-		err = r.blockUntilJobCompleted(instance.Namespace, instance.Name)
+		err = r.blockUntilJobCompleted(instance.Namespace, jobName)
 		if err != nil {
 			c <- err
 			return
@@ -149,13 +154,13 @@ func (r *ReconcileDatabase) BackupThenDrop(instance *dbv1alpha1.Database, provid
 			return
 		}
 			
-		err = r.createDatabaseJob(instance, provider, serviceAccountName)
+		err, jobName := r.createDatabaseJob(instance, provider, serviceAccountName)
 		if err != nil {
 			c <- err
 			return
 		}
 
-		err = r.blockUntilJobCompleted(instance.Namespace, instance.Name)
+		err = r.blockUntilJobCompleted(instance.Namespace, jobName)
 		if err != nil {
 			c <- err
 			return

@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"errors"
 
 	dbv1alpha1 "github.com/isotoma/db-operator/pkg/apis/db/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -123,7 +124,7 @@ func (p *Container) setup() error {
 			return err
 		}
 		if err := p.getResource(p.Database, &p.secret); err != nil {
-			if !errors.IsNotFound(err) {
+			if !k8serrors.IsNotFound(err) {
 				return err
 			}
 		}
@@ -163,6 +164,11 @@ func (p *Container) getDriver() (*Driver, error) {
 	spec := p.database.Spec
 	log.Info(fmt.Sprintf("Getting driver for provider %s", spec.Provider))
 	driver := p.drivers[spec.Provider]
+	if driver == nil {
+		err := errors.New(fmt.Sprintf("Unknown provider %s", spec.Provider))
+		log.Error(err, "Unknown provider")
+		return nil, err
+	}
 	driver.Connect = spec.Connect
 
 	log.Info("Getting master credentials")
