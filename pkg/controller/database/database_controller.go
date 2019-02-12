@@ -129,7 +129,7 @@ func (r *ReconcileDatabase) Reconcile(request reconcile.Request) (reconcile.Resu
 				if err := r.UpdatePhase(instance, dbv1alpha1.BackupBeforeDeleteRequested); err != nil {
 					return reconcile.Result{}, err
 				}
-				err := r.BackupThenDrop(instance)
+				err := <- r.BackupThenDrop(instance)
 				return reconcile.Result{}, err
 			}
 			// start a drop job, which cycles the Phase through Deleting to Deleted
