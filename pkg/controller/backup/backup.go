@@ -22,7 +22,6 @@ type JobConfig struct {
 }
 
 func (r *ReconcileBackup) blockUntilJobCompleted(Namespace, Name string) error {
-	log.Info(fmt.Sprintf("Waiting for job %s in namespace %s to complete", Name, Namespace))
 	delay, _ := time.ParseDuration("30s")
 	for {
 		time.Sleep(delay)
@@ -83,7 +82,17 @@ func (r *ReconcileBackup) createJobAndBlock(instance *dbv1alpha1.Backup, provide
 		return err
 	}
 
-	return r.blockUntilJobCompleted(instance.Namespace, jobName)
+	log.Info(fmt.Sprintf("Waiting for job %s in namespace %s to complete", jobName, instance.Namespace))
+	err = r.blockUntilJobCompleted(instance.Namespace, jobName)
+	if err != nil {
+		log.Info(fmt.Sprintf("Error while waiting for job %s in namespace %s to complete", jobName, instance.Namespace))
+		return err
+	}
+
+	log.Info(fmt.Sprintf("Job %s in namespace %s completed", jobName, instance.Namespace))
+
+	return nil
+	
 }
 
 func (r *ReconcileBackup) Backup(instance *dbv1alpha1.Backup, provider *dbv1alpha1.Provider, serviceAccountName string) chan error {
@@ -107,7 +116,7 @@ func (r *ReconcileBackup) Backup(instance *dbv1alpha1.Backup, provider *dbv1alph
 					Value: instance.Namespace,
 				},
 				corev1.EnvVar{
-					Name: "DB_OPERATOR_BACKUP",
+					Name: "DB_OPERATOR_DATABASE",
 					Value: instance.Spec.Database,
 				},
 				corev1.EnvVar{

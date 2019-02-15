@@ -335,37 +335,55 @@ func (p *Container) reconcileBackup() error {
 	log.Info("Got driver")
 
 	log.Info(fmt.Sprintf("Current phase is %s", phase))
+	log.Info(fmt.Sprintf("Action is %s", p.Action))
 
 	switch p.Action {
 	case "backup":
+		log.Info("Performing action: backup")
 		if (phase != "") && (phase != dbv1alpha1.Starting) {
 			return fmt.Errorf("Tried to perform backup, but resource %s was in unexpected status %s", p.Backup, phase)
 		}
 
-		key := "fixme-test-key"
-
 		awsConfig := &aws.Config{
 			Region:      aws.String(p.database.Spec.BackupTo.S3.Region),
-			Credentials: credentials.NewStaticCredentials(
+		}
+
+		if (p.database.Spec.AwsCredentials.AccessKeyID != "") || (p.database.Spec.AwsCredentials.SecretAccessKey != "") {
+			log.Info("Using AWS credentials from database spec")
+			awsConfig.Credentials = credentials.NewStaticCredentials(
 				p.database.Spec.AwsCredentials.AccessKeyID,
 				p.database.Spec.AwsCredentials.SecretAccessKey,
 				""),
+		} else {
+			log.Info("Not using configured AWS credentials, relying on metadata")
 		}
 
+		key := "fixme-test-key"
+		log.Info(fmt.Sprintf("Using s3 keyfrom database spec: %s", key))
+
 		reader, writer := io.Pipe()
+		log.Info("Got pipe")
 		sess, err := session.NewSession(awsConfig)
+		if err != nil {
+			log.Error(err, "Error getting AWS session")
+			return err
+		}
+		log.Info("Got AWS session")
 		uploader := s3manager.NewUploader(sess)
+		log.Info("Got uploader")
 		response, err := uploader.Upload(&s3manager.UploadInput{
 			Body:   reader,
 			Bucket: aws.String(p.database.Spec.BackupTo.S3.Bucket),
 			Key:    aws.String(key),
 		})
-		log.Info(fmt.Sprintf("Response: %+v", response))
 		if err != nil {
+			log.Error(err, "Error getting upload response")
 			return err
 		}
+		log.Info(fmt.Sprintf("Response: %+v", response))
 		err = driver.Backup(driver, writer)
 		if err != nil {
+			log.Error(err, "Error calling driver backup")
 			return err
 		}
 	default:

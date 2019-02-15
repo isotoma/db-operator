@@ -133,6 +133,12 @@ func (r *ReconcileDatabase) Reconcile(request reconcile.Request) (reconcile.Resu
 		// 	return reconcile.Result{}, err
 		// }
 		reqLogger.Info("TODO: finalizers")
+	case instance.Status.Phase == dbv1alpha1.DeletionRequested:
+		c := r.Drop(instance, provider, serviceAccountName)
+		if err := <-c; err != nil {
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, nil
 	case instance.Status.Phase == dbv1alpha1.BackupRequested:
 		c := r.Backup(instance, provider, serviceAccountName)
 		if err := <-c; err != nil {

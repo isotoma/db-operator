@@ -104,7 +104,7 @@ func (r *ReconcileBackup) Reconcile(request reconcile.Request) (reconcile.Result
 	}
 
 	database := &dbv1alpha1.Database{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: instance.Spec.Database}, instance); err != nil {
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: instance.Spec.Database}, database); err != nil {
 		reqLogger.Error(err, "Error finding database")
 		return reconcile.Result{}, err
 	}

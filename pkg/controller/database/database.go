@@ -23,7 +23,6 @@ type JobConfig struct {
 }
 
 func (r *ReconcileDatabase) blockUntilJobCompleted(Namespace, Name string) error {
-	log.Info(fmt.Sprintf("Waiting for job %s in namespace %s to complete", Name, Namespace))
 	delay, _ := time.ParseDuration("30s")
 	for {
 		time.Sleep(delay)
@@ -84,11 +83,19 @@ func (r *ReconcileDatabase) createJobAndBlock(instance *dbv1alpha1.Database, pro
 		return err
 	}
 
-	return r.blockUntilJobCompleted(instance.Namespace, jobName)
+	log.Info(fmt.Sprintf("Waiting for job %s in namespace %s to complete", jobName, instance.Namespace))
+	err = r.blockUntilJobCompleted(instance.Namespace, jobName)
+	if err != nil {
+		log.Info(fmt.Sprintf("Error while waiting for job %s in namespace %s to complete", jobName, instance.Namespace))
+		return err
+	}
+
+	log.Info(fmt.Sprintf("Job %s in namespace %s completed", jobName, instance.Namespace))
+
+	return nil
 }
 
 func (r *ReconcileDatabase) blockUntilBackupCompleted(Namespace, Name string) error {
-	log.Info(fmt.Sprintf("Waiting for backup %s in namespace %s to complete", Name, Namespace))
 	delay, _ := time.ParseDuration("30s")
 	for {
 		time.Sleep(delay)
@@ -132,37 +139,17 @@ func (r *ReconcileDatabase) createBackupResourceAndBlock(instance *dbv1alpha1.Da
 	if err := r.client.Create(context.TODO(), bk); err != nil {
 		return err
 	}
-	
-	if err := r.blockUntilBackupCompleted(instance.Namespace, bk.ObjectMeta.Name); err != nil {
+
+	backupName := bk.ObjectMeta.Name
+	log.Info(fmt.Sprintf("Waiting for backup %s in namespace %s to complete", backupName, instance.Namespace))
+	if err := r.blockUntilBackupCompleted(instance.Namespace, backupName); err != nil {
+		log.Info(fmt.Sprintf("Error while waiting for backup %s in namespace %s to complete", backupName, instance.Namespace))
 		return err
 	}
+
+	log.Info(fmt.Sprintf("Backup %s in namespace %s completed", backupName, instance.Namespace))
 	return nil
 }
-
-// config := JobConfig{
-// 	Name: "backup",
-// 	ServiceAccountName: serviceAccountName,
-// 	Env: []corev1.EnvVar {
-// 		corev1.EnvVar{
-// 			Name: "DB_OPERATOR_ACTION",
-// 			Value: "backup",
-// 		},
-// 		corev1.EnvVar{
-// 			Name: "DB_OPERATOR_NAMESPACE",
-// 			Value: instance.Namespace,
-// 		},
-// 		corev1.EnvVar{
-// 			Name: "DB_OPERATOR_DATABASE",
-// 			Value: instance.Name,
-// 		},
-// 		corev1.EnvVar{
-// 			Name: "DB_OPERATOR_BACKUP",
-// 			Value: backup.Name,
-// 		},
-// 	}
-// }
-// c <- r.createJobAndBlock(instance, provider, config)
-// Create a backup resource and watch it until it is completed
 
 func (r *ReconcileDatabase) Create(instance *dbv1alpha1.Database, provider *dbv1alpha1.Provider, serviceAccountName string) chan error {
 	c := make(chan error)
