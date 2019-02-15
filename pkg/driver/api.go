@@ -388,7 +388,7 @@ func (p *Container) reconcileBackup() error {
 
 		log.Info("Waiting for Backup to complete...")
 
-		err <- backupChan
+		err = <- backupChan
 
 		if err != nil {
 			log.Error(err, "Error calling driver backup")
