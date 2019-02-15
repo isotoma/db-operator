@@ -55,7 +55,7 @@ type Driver struct {
 	DBName   string             // the name of the database
 	Create   func(*Driver) error
 	Drop     func(*Driver) error
-	Backup   func(*Driver) (io.ReadCloser, error)
+	Backup   func(*Driver) (*io.ReadCloser, error)
 }
 
 var log logr.Logger
@@ -376,7 +376,7 @@ func (p *Container) reconcileBackup() error {
 
 		go func() {
 			gw := gzip.NewWriter(writer)
-			bytes, err := io.Copy(gw, backupReader)
+			bytes, err := io.Copy(gw, *backupReader)
 			if err != nil {
 				c <- err
 				return
