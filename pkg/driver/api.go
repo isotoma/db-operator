@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"errors"
+	"compress/gzip"
 
 	dbv1alpha1 "github.com/isotoma/db-operator/pkg/apis/db/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -54,7 +55,7 @@ type Driver struct {
 	DBName   string             // the name of the database
 	Create   func(*Driver) error
 	Drop     func(*Driver) error
-	Backup   func(*Driver, *io.PipeWriter) chan error
+	Backup   func(*Driver) (io.ReadCloser, error)
 }
 
 var log logr.Logger
@@ -365,7 +366,26 @@ func (p *Container) reconcileBackup() error {
 		reader, writer := io.Pipe()
 		log.Info("Got pipe")
 
-		backupChan := driver.Backup(driver, writer)
+		backupReader, err := driver.Backup(driver)
+		if err != nil {
+			log.Error(err, "Error getting backup reader")
+			return err
+		}
+
+		c := make(chan error)
+
+		go func() {
+			gw := gzip.NewWriter(writer)
+			bytes, err := io.Copy(gw, backupReader)
+			if err != nil {
+				c <- err
+				return
+			}
+			log.Info(fmt.Sprintf("%d bytes exported", bytes))
+			gw.Close()
+			writer.Close()
+			c <- nil
+		}()
 
 		sess, err := session.NewSession(awsConfig)
 		if err != nil {
@@ -375,9 +395,11 @@ func (p *Container) reconcileBackup() error {
 		log.Info("Got AWS session")
 		uploader := s3manager.NewUploader(sess)
 		log.Info("Got uploader")
+		bucketName := p.database.Spec.BackupTo.S3.Bucket
+		log.Info(fmt.Sprintf("Uploading from backup reader to %s key %s", bucketName, key))
 		response, err := uploader.Upload(&s3manager.UploadInput{
 			Body:   reader,
-			Bucket: aws.String(p.database.Spec.BackupTo.S3.Bucket),
+			Bucket: aws.String(bucketName),
 			Key:    aws.String(key),
 		})
 		if err != nil {
@@ -388,10 +410,9 @@ func (p *Container) reconcileBackup() error {
 
 		log.Info("Waiting for Backup to complete...")
 
-		err = <- backupChan
-
+		err = <- c
 		if err != nil {
-			log.Error(err, "Error calling driver backup")
+			log.Error(err, "Error from zipping process")
 			return err
 		}
 		log.Info("Backup completed")
