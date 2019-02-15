@@ -353,7 +353,7 @@ func (p *Container) reconcileBackup() error {
 			awsConfig.Credentials = credentials.NewStaticCredentials(
 				p.database.Spec.AwsCredentials.AccessKeyID,
 				p.database.Spec.AwsCredentials.SecretAccessKey,
-				""),
+				"")
 		} else {
 			log.Info("Not using configured AWS credentials, relying on metadata")
 		}
