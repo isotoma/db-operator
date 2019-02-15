@@ -54,7 +54,7 @@ type Driver struct {
 	DBName   string             // the name of the database
 	Create   func(*Driver) error
 	Drop     func(*Driver) error
-	Backup   func(*Driver, *io.PipeWriter) error
+	Backup   func(*Driver, *io.PipeWriter) chan error
 }
 
 var log logr.Logger
@@ -359,10 +359,14 @@ func (p *Container) reconcileBackup() error {
 		}
 
 		key := "fixme-test-key"
+
 		log.Info(fmt.Sprintf("Using s3 keyfrom database spec: %s", key))
 
 		reader, writer := io.Pipe()
 		log.Info("Got pipe")
+
+		backupChan := driver.Backup(driver, writer)
+
 		sess, err := session.NewSession(awsConfig)
 		if err != nil {
 			log.Error(err, "Error getting AWS session")
@@ -381,11 +385,17 @@ func (p *Container) reconcileBackup() error {
 			return err
 		}
 		log.Info(fmt.Sprintf("Response: %+v", response))
-		err = driver.Backup(driver, writer)
+
+		log.Info("Waiting for Backup to complete...")
+
+		err <- backupChan
+
 		if err != nil {
 			log.Error(err, "Error calling driver backup")
 			return err
 		}
+		log.Info("Backup completed")
+		return nil
 	default:
 		return fmt.Errorf("Unknown action %s", p.Action)
 		
