@@ -20,6 +20,11 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
 type Container struct {
@@ -30,6 +35,7 @@ type Container struct {
 	Namespace string
 	Database  string
 	Backup    string
+	Action    string
 	drivers   map[string]*Driver
 }
 
@@ -48,7 +54,7 @@ type Driver struct {
 	DBName   string             // the name of the database
 	Create   func(*Driver) error
 	Drop     func(*Driver) error
-	Backup   func(*Driver, *io.Writer) error
+	Backup   func(*Driver, *io.PipeWriter) error
 }
 
 var log logr.Logger
@@ -99,20 +105,20 @@ func (p *Container) getResource(name string, dest runtime.Object) error {
 
 func (p *Container) setup() error {
 	// This will be populated using the downward API
+	p.Namespace = os.Getenv("DB_OPERATOR_NAMESPACE")
 	if p.Namespace == "" {
-		p.Namespace = os.Getenv("DB_OPERATOR_NAMESPACE")
+		return fmt.Errorf("No namespace (DB_OPERATOR_NAMESPACE) provided")
 	}
-	if p.Namespace == "" {
-		return fmt.Errorf("Namespace not specified")
-	}
+	p.Database = os.Getenv("DB_OPERATOR_DATABASE")
+	p.Backup = os.Getenv("DB_OPERATOR_BACKUP")
 	if p.Database == "" {
-		p.Database = os.Getenv("DB_OPERATOR_DATABASE")
+		return fmt.Errorf("No database name (DB_OPERATOR_BACKUP) provided")
 	}
-	if p.Backup == "" {
-		p.Backup = os.Getenv("DB_OPERATOR_BACKUP")
+	if p.Action == "" {
+		p.Action = os.Getenv("DB_OPERATOR_ACTION")
 	}
-	if p.Database == "" && p.Backup == "" {
-		return fmt.Errorf("No database or backup name provided")
+	if p.Action == "" {
+		return fmt.Errorf("No action (DB_OPERATOR_ACTION) provider")
 	}
 	if err := p.connect(); err != nil {
 		return err
@@ -132,6 +138,9 @@ func (p *Container) setup() error {
 	if p.Backup != "" {
 		log.Info("Getting backup")
 		if err := p.getResource(p.Backup, &p.backup); err != nil {
+			return err
+		}
+		if err := p.getResource(p.backup.Spec.Database, &p.database); err != nil {
 			return err
 		}
 	}
@@ -221,8 +230,11 @@ func (p *Container) reconcileDatabase() error {
 
 	log.Info(fmt.Sprintf("Current phase is %s", phase))
 
-	switch {
-	case phase == "":
+	switch p.Action {
+	case "create":
+		if (phase != "") || (phase != dbv1alpha1.Creating) || (phase != dbv1alpha1.Created) {
+			return fmt.Errorf("Tried to create database, but resource %s was in unexpected status %s", p.Database, phase)
+		}
 		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Creating)
 		if err != nil {
 			return err
@@ -235,18 +247,10 @@ func (p *Container) reconcileDatabase() error {
 		if err != nil {
 			return err
 		}
-	case phase == dbv1alpha1.Creating:
-		err = driver.Create(driver)
-		if err != nil {
-			return err
+	case "drop":
+		if (phase != dbv1alpha1.DeletionRequested) || (phase != dbv1alpha1.DeletionInProgress) || (phase != dbv1alpha1.Deleted) {
+			return fmt.Errorf("Tried to drop database, but resource %s was in unexpected status %s", p.Database, phase)
 		}
-		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Created)
-		if err != nil {
-			return err
-		}
-	case phase == dbv1alpha1.Created:
-		log.Info(fmt.Sprintf("Nothing to do"))
-	case phase == dbv1alpha1.DeletionRequested:
 		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.DeletionInProgress)
 		if err != nil {
 			return err
@@ -259,59 +263,116 @@ func (p *Container) reconcileDatabase() error {
 		if err != nil {
 			return err
 		}
-	case phase == dbv1alpha1.DeletionInProgress:
-		err = driver.Drop(driver)
-		if err != nil {
-			return err
-		}
-		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Deleted)
-		if err != nil {
-			return err
-		}
-	case phase == dbv1alpha1.Deleted:
-		log.Info(fmt.Sprintf("Nothing to do"))
-	case phase == dbv1alpha1.BackupBeforeDeleteRequested:
-		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.BackupBeforeDeleteInProgress)
-		if err != nil {
-			return err
-		}
-		// TODO: decide how to wrangle the writer
-
-		// err = driver.Backup(driver, writer[?])
-		// if err != nil {
-		// 	return err
-		// }
-
-		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.BackupBeforeDeleteCompleted)
-		if err != nil {
-			return err
-		}
-
-		// TODO: should this then do the dropping too?
-
-	case phase == dbv1alpha1.BackupBeforeDeleteInProgress:
-		// TODO: more checking, or just initiate the backup-the-drop?
-		// TODO: decide how to wrangle the writer
-
-		// err = driver.Backup(driver, writer[?])
-		// if err != nil {
-		// 	return err
-		// }
-
-		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.BackupBeforeDeleteCompleted)
-		if err != nil {
-			return err
-		}
-
-		// TODO: should this then do the dropping too?
-
-	case phase == dbv1alpha1.BackupBeforeDeleteCompleted:
-		log.Info(fmt.Sprintf("Nothing to do"))
+	default:
+		return fmt.Errorf("Unknown action %s", p.Action)
 	}
+
+	// switch {
+	// case phase == "":
+		
+	// case phase == dbv1alpha1.Creating:
+	// case phase == dbv1alpha1.DeletionRequested:
+		
+	// case phase == dbv1alpha1.DeletionInProgress:
+	// 	err = driver.Drop(driver)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Deleted)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// case phase == dbv1alpha1.Deleted:
+	// 	log.Info(fmt.Sprintf("Nothing to do"))
+	// case phase == dbv1alpha1.BackupBeforeDeleteRequested:
+	// 	err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.BackupBeforeDeleteInProgress)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	// TODO: decide how to wrangle the writer
+
+	// 	// err = driver.Backup(driver, writer[?])
+	// 	// if err != nil {
+	// 	// 	return err
+	// 	// }
+
+	// 	err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.BackupBeforeDeleteCompleted)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// 	// TODO: should this then do the dropping too?
+
+	// case phase == dbv1alpha1.BackupBeforeDeleteInProgress:
+	// 	// TODO: more checking, or just initiate the backup-the-drop?
+	// 	// TODO: decide how to wrangle the writer
+
+	// 	// err = driver.Backup(driver, writer[?])
+	// 	// if err != nil {
+	// 	// 	return err
+	// 	// }
+
+	// 	err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.BackupBeforeDeleteCompleted)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// 	// TODO: should this then do the dropping too?
+
+	// case phase == dbv1alpha1.BackupBeforeDeleteCompleted:
+	// 	log.Info(fmt.Sprintf("Nothing to do"))
+	// }
 	return nil
 }
 
 func (p *Container) reconcileBackup() error {
+	phase := p.backup.Status.Phase
+	log.Info("Getting driver")
+	driver, err := p.getDriver()
+	if err != nil {
+		return err
+	}
+	log.Info("Got driver")
+
+	log.Info(fmt.Sprintf("Current phase is %s", phase))
+
+	switch p.Action {
+	case "backup":
+		if (phase != "") || (phase != dbv1alpha1.Starting) {
+			return fmt.Errorf("Tried to perform backup, but resource %s was in unexpected status %s", p.Backup, phase)
+		}
+
+		key := "fixme-test-key"
+
+		awsConfig := &aws.Config{
+			Region:      aws.String(p.database.Spec.BackupTo.S3.Region),
+			Credentials: credentials.NewStaticCredentials(
+				p.database.Spec.AwsCredentials.AccessKeyID,
+				p.database.Spec.AwsCredentials.SecretAccessKey,
+				""),
+		}
+
+		reader, writer := io.Pipe()
+		sess, err := session.NewSession(awsConfig)
+		uploader := s3manager.NewUploader(sess)
+		response, err := uploader.Upload(&s3manager.UploadInput{
+			Body:   reader,
+			Bucket: aws.String(p.database.Spec.BackupTo.S3.Bucket),
+			Key:    aws.String(key),
+		})
+		log.Info(fmt.Sprintf("Response: %+v", response))
+		if err != nil {
+			return err
+		}
+		err = driver.Backup(driver, writer)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("Unknown action %s", p.Action)
+		
+	}
+
 	return nil
 }
 
@@ -328,13 +389,14 @@ func (p *Container) Run() error {
 		return err
 	}
 	log.Info("Setup done")
-	if p.Database != "" {
-		log.Info("Reconciling database")
+
+	if p.Backup == "" {
+		log.Info("No backup name provided, assuming action is a database action")
 		return p.reconcileDatabase()
-	}
-	if p.Backup != "" {
-		log.Info("Reconciling backup")
+	} else {
+		log.Info("Backup name provided, assuming action is a backup action")
 		return p.reconcileBackup()
 	}
+
 	return nil
 }

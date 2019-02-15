@@ -26,6 +26,51 @@
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
 
 [[projects]]
+  digest = "1:00c3492dae5c71ad21757950b847c2a57d437cd7e3c7879663e6d40a4e921ffa"
+  name = "github.com/aws/aws-sdk-go"
+  packages = [
+    "aws",
+    "aws/awserr",
+    "aws/awsutil",
+    "aws/client",
+    "aws/client/metadata",
+    "aws/corehandlers",
+    "aws/credentials",
+    "aws/credentials/ec2rolecreds",
+    "aws/credentials/endpointcreds",
+    "aws/credentials/processcreds",
+    "aws/credentials/stscreds",
+    "aws/csm",
+    "aws/defaults",
+    "aws/ec2metadata",
+    "aws/endpoints",
+    "aws/request",
+    "aws/session",
+    "aws/signer/v4",
+    "internal/ini",
+    "internal/s3err",
+    "internal/sdkio",
+    "internal/sdkrand",
+    "internal/sdkuri",
+    "internal/shareddefaults",
+    "private/protocol",
+    "private/protocol/eventstream",
+    "private/protocol/eventstream/eventstreamapi",
+    "private/protocol/query",
+    "private/protocol/query/queryutil",
+    "private/protocol/rest",
+    "private/protocol/restxml",
+    "private/protocol/xml/xmlutil",
+    "service/s3",
+    "service/s3/s3iface",
+    "service/s3/s3manager",
+    "service/sts",
+  ]
+  pruneopts = "NT"
+  revision = "24d2586ee6c7aa6a6efec818c2b8709db125ee4c"
+  version = "v1.16.34"
+
+[[projects]]
   branch = "master"
   digest = "1:c819830f4f5ef85874a90ac3cbcc96cd322c715f5c96fbe4722eacd3dafbaa07"
   name = "github.com/beorn7/perks"
@@ -187,14 +232,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:edf177373f563957f575f757cff0fb10c9d431926af210410d83f9aecfb91629"
+  digest = "1:bb7bd892abcb75ef819ce2efab9d54d22b7e38dc05ffac55428bb0578b52912b"
   name = "github.com/gregjones/httpcache"
   packages = [
     ".",
     "diskcache",
   ]
   pruneopts = "NT"
-  revision = "7a902570cb17174de4ac788094f8ebedec136f57"
+  revision = "3befbb6ad0cc97d4c25d851e9528915809e1a22f"
 
 [[projects]]
   digest = "1:b42cde0e1f3c816dd57f57f7bbcf05ca40263ad96f168714c130c611fc0856a6"
@@ -214,6 +259,13 @@
   pruneopts = "NT"
   revision = "7c29201646fa3de8506f701213473dd407f19646"
   version = "v0.3.7"
+
+[[projects]]
+  digest = "1:1234e31f3de67447e344dabcdf72c4588d31b8eed2d28f1889377ec006a086a9"
+  name = "github.com/jmespath/go-jmespath"
+  packages = ["."]
+  pruneopts = "NT"
+  revision = "c2b33e84"
 
 [[projects]]
   digest = "1:1d39c063244ad17c4b18e8da1551163b6ffb52bd1640a49a8ec5c3b7bf4dbd5d"
@@ -398,7 +450,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9bab7b5f4a6e7fa7a6326c7d7c77e47bf1c9bbf967be1d2b9fe240dcf9375f60"
+  digest = "1:922c0bb9dc59af35400f6725ed08582f99f710ffc1a1075e8914c73515bb269e"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -409,11 +461,11 @@
     "idna",
   ]
   pruneopts = "NT"
-  revision = "65e2d4e15006aab9813ff8769e768bbf4bb667a0"
+  revision = "3a22650c66bd7f4fb6d1e8072ffd7b75c8a27898"
 
 [[projects]]
   branch = "master"
-  digest = "1:3ffd41ab600de2472c66a549084cd34ad9acaac9f3412846e254cc298431a548"
+  digest = "1:495ec760c8fb3ce35f5126abf6e9f33a2069f9c7ad67006d84e7352cbb51537c"
   name = "golang.org/x/oauth2"
   packages = [
     ".",
@@ -423,18 +475,18 @@
     "jwt",
   ]
   pruneopts = "NT"
-  revision = "5f6b76b7c9ddc07924f32b15de8f03ceec72d74b"
+  revision = "3e8b2be1363542a95c52ea0796d4a40dacfb5b95"
 
 [[projects]]
   branch = "master"
-  digest = "1:e7207783a19d8d4fef1fb4090f233f3181b62d482aad4cc21c5c712a6cdba52c"
+  digest = "1:cc70e73977ec7ea9ba167ad659165c1915513451384ba914b67c723fa6f76e71"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "NT"
-  revision = "3b5209105503162ded1863c307ac66fec31120dd"
+  revision = "983097b1a8a340cd1cc7df17d735154d89e10b1a"
 
 [[projects]]
   digest = "1:8c74f97396ed63cc2ef04ebb5fc37bb032871b8fd890a25991ed40974b00cd2a"
@@ -470,7 +522,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:af3707f8638e9c6d5de75a102c79d38d32a78464f4304f56ba16fa6e7ec06886"
+  digest = "1:744361be551bb0b528de02d51925a0e67c6ac706f8e3514b5eec0586643dbf65"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
@@ -487,7 +539,7 @@
     "internal/semver",
   ]
   pruneopts = "NT"
-  revision = "44bee7e801e4a70b5fc9a91ff23830ab4df55d5e"
+  revision = "508f945e1a9bd8b5e3a9444bb2cdd13d0896132e"
 
 [[projects]]
   digest = "1:902ffa11f1d8c19c12b05cabffe69e1a16608ad03a8899ebcb9c6bde295660ae"
@@ -663,7 +715,6 @@
     "rest",
     "rest/watch",
     "restmapper",
-    "testing",
     "third_party/forked/golang/template",
     "tools/auth",
     "tools/cache",
@@ -772,7 +823,6 @@
     "pkg/client",
     "pkg/client/apiutil",
     "pkg/client/config",
-    "pkg/client/fake",
     "pkg/controller",
     "pkg/controller/controllerutil",
     "pkg/event",
@@ -805,6 +855,9 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/aws/aws-sdk-go/aws",
+    "github.com/aws/aws-sdk-go/aws/session",
+    "github.com/aws/aws-sdk-go/service/s3/s3manager",
     "github.com/go-logr/logr",
     "github.com/go-logr/zapr",
     "github.com/operator-framework/operator-sdk/pkg/k8sutil",
@@ -819,7 +872,6 @@
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
     "k8s.io/apimachinery/pkg/types",
-    "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/plugin/pkg/client/auth/gcp",
     "k8s.io/code-generator/cmd/client-gen",
     "k8s.io/code-generator/cmd/conversion-gen",
@@ -831,7 +883,6 @@
     "k8s.io/gengo/args",
     "sigs.k8s.io/controller-runtime/pkg/client",
     "sigs.k8s.io/controller-runtime/pkg/client/config",
-    "sigs.k8s.io/controller-runtime/pkg/client/fake",
     "sigs.k8s.io/controller-runtime/pkg/controller",
     "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil",
     "sigs.k8s.io/controller-runtime/pkg/handler",
