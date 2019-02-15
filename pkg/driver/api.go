@@ -232,7 +232,7 @@ func (p *Container) reconcileDatabase() error {
 
 	switch p.Action {
 	case "create":
-		if (phase != "") || (phase != dbv1alpha1.Creating) || (phase != dbv1alpha1.Created) {
+		if (phase != "") && (phase != dbv1alpha1.Creating) && (phase != dbv1alpha1.Created) {
 			return fmt.Errorf("Tried to create database, but resource %s was in unexpected status %s", p.Database, phase)
 		}
 		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Creating)
@@ -248,7 +248,7 @@ func (p *Container) reconcileDatabase() error {
 			return err
 		}
 	case "drop":
-		if (phase != dbv1alpha1.DeletionRequested) || (phase != dbv1alpha1.DeletionInProgress) || (phase != dbv1alpha1.Deleted) {
+		if (phase != dbv1alpha1.DeletionRequested) && (phase != dbv1alpha1.DeletionInProgress) && (phase != dbv1alpha1.Deleted) {
 			return fmt.Errorf("Tried to drop database, but resource %s was in unexpected status %s", p.Database, phase)
 		}
 		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.DeletionInProgress)
@@ -338,7 +338,7 @@ func (p *Container) reconcileBackup() error {
 
 	switch p.Action {
 	case "backup":
-		if (phase != "") || (phase != dbv1alpha1.Starting) {
+		if (phase != "") && (phase != dbv1alpha1.Starting) {
 			return fmt.Errorf("Tried to perform backup, but resource %s was in unexpected status %s", p.Backup, phase)
 		}
 
