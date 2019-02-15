@@ -376,6 +376,10 @@ func (p *Container) reconcileBackup() error {
 
 		go func() {
 			gw := gzip.NewWriter(writer)
+			// This effectively waits for the backup
+			// reader command to finish, as it keeps
+			// reading from the reader until it gets an
+			// error or gets an EOF.
 			bytes, err := io.Copy(gw, *backupReader)
 			if err != nil {
 				c <- err
