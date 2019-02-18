@@ -175,16 +175,17 @@ func (p *Container) readFromAwsSecret(s dbv1alpha1.AwsSecretRef) (string, error)
 
 	bytesData := []byte(*stringData)
 
-	var jsonData interface{}
-	err = json.Unmarshal(bytesData, jsonData)
+	var jsonData map[string]*json.RawMessage
+	err = json.Unmarshal(bytesData, &jsonData)
 
 	if err != nil {
 		return "", err
 	}
 
-	log.Info(fmt.Sprintf("JSON: %+v", jsonData))
+	var value string
+	err = json.Unmarshal(*jsonData[s.Key], &value)
 
-	return "", nil
+	return value, nil
 }
 
 func (p *Container) getCredential(cred dbv1alpha1.Credential) (string, error) {
