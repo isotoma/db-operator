@@ -163,10 +163,16 @@ func (p *Container) readFromKubernetesSecret(s dbv1alpha1.SecretKeyRef) (string,
 		return "", fmt.Errorf("No key %s found", s.Key)
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(string(value))
+	stringValue := string(value)
+
+	log.Info(fmt.Sprintf("Got raw string value: %s", stringValue))
+
+	decoded, err := base64.StdEncoding.DecodeString(stringValue)
 	if err != nil {
 		return "", err
 	}
+
+	log.Info(fmt.Sprintf("Got decoded string value: %s", decoded))
 
 	return string(decoded), nil
 }
