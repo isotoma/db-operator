@@ -7,6 +7,7 @@ import (
 	"os"
 	"errors"
 	"compress/gzip"
+	"encoding/json"
 
 	dbv1alpha1 "github.com/isotoma/db-operator/pkg/apis/db/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
 )
 
 type Container struct {
@@ -153,19 +155,52 @@ func (p *Container) readFromKubernetesSecret(s dbv1alpha1.SecretKeyRef) (string,
 }
 
 func (p *Container) readFromAwsSecret(s dbv1alpha1.AwsSecretRef) (string, error) {
+	awsConfig := p.getAWSConfig()
+
+	sess, err := session.NewSession(awsConfig)
+	if err != nil {
+		return "", err
+	}
+
+	ssm := secretsmanager.New(sess)
+
+	out, err := ssm.GetSecretValue(&secretsmanager.GetSecretValueInput{SecretId: &s.ARN})
+	if err != nil {
+		return "", err
+	}
+
+	stringData := out.SecretString
+
+	log.Info(fmt.Sprintf("Got string data: %s", *stringData))
+
+	bytesData := []byte(*stringData)
+
+	var jsonData interface{}
+	err = json.Unmarshal(bytesData, jsonData)
+
+	if err != nil {
+		return "", err
+	}
+
+	log.Info(fmt.Sprintf("JSON: %+v", jsonData))
+
 	return "", nil
 }
 
 func (p *Container) getCredential(cred dbv1alpha1.Credential) (string, error) {
 	if cred.Value != "" {
+		log.Info("Getting credentials from plain value")
 		return cred.Value, nil
 	}
 	if cred.ValueFrom.SecretKeyRef.Name != "" {
+		log.Info(fmt.Sprintf("Getting credentials from kubernetes secret: %s", cred.ValueFrom.SecretKeyRef.Name))
 		return p.readFromKubernetesSecret(cred.ValueFrom.SecretKeyRef)
 	}
 	if cred.ValueFrom.AwsSecretKeyRef.ARN != "" {
+		log.Info(fmt.Sprintf("Getting credentials from kubernetes secret: %s", cred.ValueFrom.AwsSecretKeyRef.ARN))
 		return p.readFromAwsSecret(cred.ValueFrom.AwsSecretKeyRef)
 	}
+	log.Info("No credentials provided")
 	return "", fmt.Errorf("No credentials provided")
 }
 
@@ -326,6 +361,23 @@ func (p *Container) reconcileDatabase() error {
 	return nil
 }
 
+func (p *Container) getAWSConfig() *aws.Config {
+	awsConfig := &aws.Config{
+		Region:      aws.String(p.database.Spec.BackupTo.S3.Region),
+	}
+
+	if (p.database.Spec.AwsCredentials.AccessKeyID != "") || (p.database.Spec.AwsCredentials.SecretAccessKey != "") {
+		log.Info("Using AWS credentials from database spec")
+		awsConfig.Credentials = credentials.NewStaticCredentials(
+			p.database.Spec.AwsCredentials.AccessKeyID,
+			p.database.Spec.AwsCredentials.SecretAccessKey,
+			"")
+	} else {
+		log.Info("Not using configured AWS credentials, relying on metadata")
+	}
+	return awsConfig
+}
+
 func (p *Container) reconcileBackup() error {
 	phase := p.backup.Status.Phase
 	log.Info("Getting driver")
@@ -345,19 +397,7 @@ func (p *Container) reconcileBackup() error {
 			return fmt.Errorf("Tried to perform backup, but resource %s was in unexpected status %s", p.Backup, phase)
 		}
 
-		awsConfig := &aws.Config{
-			Region:      aws.String(p.database.Spec.BackupTo.S3.Region),
-		}
-
-		if (p.database.Spec.AwsCredentials.AccessKeyID != "") || (p.database.Spec.AwsCredentials.SecretAccessKey != "") {
-			log.Info("Using AWS credentials from database spec")
-			awsConfig.Credentials = credentials.NewStaticCredentials(
-				p.database.Spec.AwsCredentials.AccessKeyID,
-				p.database.Spec.AwsCredentials.SecretAccessKey,
-				"")
-		} else {
-			log.Info("Not using configured AWS credentials, relying on metadata")
-		}
+		awsConfig := p.getAWSConfig()
 
 		key := "fixme-test-key"
 

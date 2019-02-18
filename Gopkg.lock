@@ -10,12 +10,12 @@
   version = "v0.36.0"
 
 [[projects]]
-  digest = "1:d8ebbd207f3d3266d4423ce4860c9f3794956306ded6c7ba312ecc69cdfbf04c"
+  digest = "1:0a111edd8693fd977f42a0c4f199a0efb13c20aec9da99ad8830c7bb6a87e8d6"
   name = "github.com/PuerkitoBio/purell"
   packages = ["."]
   pruneopts = "NT"
-  revision = "0bcb03f4b4d0a9428594752bd2a3b9aa0a9d4bd4"
-  version = "v1.1.0"
+  revision = "44968752391892e1b0d0b821ee79e9a85fa13049"
+  version = "v1.1.1"
 
 [[projects]]
   branch = "master"
@@ -26,7 +26,7 @@
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
 
 [[projects]]
-  digest = "1:00c3492dae5c71ad21757950b847c2a57d437cd7e3c7879663e6d40a4e921ffa"
+  digest = "1:473671c787dc86f913a06e376a9b34ca931d4e992fd3483f52b49317f5f214a7"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -56,6 +56,8 @@
     "private/protocol",
     "private/protocol/eventstream",
     "private/protocol/eventstream/eventstreamapi",
+    "private/protocol/json/jsonutil",
+    "private/protocol/jsonrpc",
     "private/protocol/query",
     "private/protocol/query/queryutil",
     "private/protocol/rest",
@@ -64,11 +66,12 @@
     "service/s3",
     "service/s3/s3iface",
     "service/s3/s3manager",
+    "service/secretsmanager",
     "service/sts",
   ]
   pruneopts = "NT"
-  revision = "24d2586ee6c7aa6a6efec818c2b8709db125ee4c"
-  version = "v1.16.34"
+  revision = "10ce3494cb43d3d8dd58b4e5fa40edc2136bf96b"
+  version = "v1.16.36"
 
 [[projects]]
   branch = "master"
@@ -154,15 +157,15 @@
   version = "v0.18.0"
 
 [[projects]]
-  digest = "1:932970e69f16e127aa0653b8263ae588cd127fa53273e19ba44332902c9826f2"
+  digest = "1:0b39706cfa32c1ba9e14435b5844d04aef81b60f44b6077e61e0607d56692603"
   name = "github.com/gogo/protobuf"
   packages = [
     "proto",
     "sortkeys",
   ]
   pruneopts = "NT"
-  revision = "4cbf7e384e768b4e01799441fdf2a706a5635ae7"
-  version = "v1.2.0"
+  revision = "ba06b47c162d49f2af050fb4c75bcbc86a159d5c"
+  version = "v1.2.1"
 
 [[projects]]
   branch = "master"
@@ -479,14 +482,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:cc70e73977ec7ea9ba167ad659165c1915513451384ba914b67c723fa6f76e71"
+  digest = "1:cb28bbe2e8a756f9f8da0784e2b47df60904be7895212412081730a5a9a3407b"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "NT"
-  revision = "983097b1a8a340cd1cc7df17d735154d89e10b1a"
+  revision = "d0b11bdaac8adb652bff00e49bcacf992835621a"
 
 [[projects]]
   digest = "1:8c74f97396ed63cc2ef04ebb5fc37bb032871b8fd890a25991ed40974b00cd2a"
@@ -522,7 +525,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:744361be551bb0b528de02d51925a0e67c6ac706f8e3514b5eec0586643dbf65"
+  digest = "1:d10793fdb379e3e2330bec1c0fc2442f345db036e321e4d0b4952622a7374a0f"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
@@ -539,7 +542,7 @@
     "internal/semver",
   ]
   pruneopts = "NT"
-  revision = "508f945e1a9bd8b5e3a9444bb2cdd13d0896132e"
+  revision = "8dcb7bc8c7fe0a895995c76c721cef79419ac98a"
 
 [[projects]]
   digest = "1:902ffa11f1d8c19c12b05cabffe69e1a16608ad03a8899ebcb9c6bde295660ae"
@@ -801,7 +804,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ff5c2d9be122e6400b12c7d49688b29ddf5b08566842c455c356f20cf748254c"
+  digest = "1:b93c03ca5a6bfe2429ba6af1ca27c3b50819e8ae09980726b5db9f79d40a7510"
   name = "k8s.io/kube-openapi"
   packages = [
     "cmd/openapi-gen/args",
@@ -812,7 +815,7 @@
     "pkg/util/sets",
   ]
   pruneopts = "NT"
-  revision = "d7c86cdc46e3a4fcf892b32dd7bc3aa775e0870e"
+  revision = "ea82251f3668f8c1bde607fa6e20e5bf36e576a4"
 
 [[projects]]
   digest = "1:e03ddaf9f31bccbbb8c33eabad2c85025a95ca98905649fd744e0a54c630a064"
@@ -856,8 +859,10 @@
   analyzer-version = 1
   input-imports = [
     "github.com/aws/aws-sdk-go/aws",
+    "github.com/aws/aws-sdk-go/aws/credentials",
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/s3/s3manager",
+    "github.com/aws/aws-sdk-go/service/secretsmanager",
     "github.com/go-logr/logr",
     "github.com/go-logr/zapr",
     "github.com/operator-framework/operator-sdk/pkg/k8sutil",
