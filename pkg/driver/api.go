@@ -8,6 +8,7 @@ import (
 	"errors"
 	"compress/gzip"
 	"encoding/json"
+	"encoding/base64"
 
 	dbv1alpha1 "github.com/isotoma/db-operator/pkg/apis/db/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -151,7 +152,23 @@ func (p *Container) setup() error {
 }
 
 func (p *Container) readFromKubernetesSecret(s dbv1alpha1.SecretKeyRef) (string, error) {
-	return "", nil
+	k8sSecret := &corev1.Secret{}
+	err := p.getResource(s.Name, k8sSecret)
+	if err != nil {
+		return "", err
+	}
+	value := k8sSecret.Data[s.Key]
+
+	if value == nil {
+		return "", fmt.Errorf("No key %s found", s.Key)
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(string(value))
+	if err != nil {
+		return "", err
+	}
+
+	return string(decoded), nil
 }
 
 func (p *Container) readFromAwsSecret(s dbv1alpha1.AwsSecretRef) (string, error) {
