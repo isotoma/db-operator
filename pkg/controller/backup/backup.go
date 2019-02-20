@@ -104,7 +104,7 @@ func (r *ReconcileBackup) Backup(instance *dbv1alpha1.Backup, provider *dbv1alph
 		}
 
 		config := JobConfig{
-			Name: "drop",
+			Name: "backup",
 			ServiceAccountName: serviceAccountName,
 			Env: []corev1.EnvVar {
 				corev1.EnvVar{
