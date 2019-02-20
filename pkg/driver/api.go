@@ -431,7 +431,7 @@ func (p *Container) reconcileBackup() error {
 		}
 
 		log.Info("Marking backup as completed")
-		err = PatchBackupPhase(p.backup, dbv1alpha1.Completed)
+		err = PatchBackupPhase(p.k8sclient, &p.backup, dbv1alpha1.Completed)
 		if err != nil {
 			log.Error(err, "Error marking backup as completed")
 			return err
