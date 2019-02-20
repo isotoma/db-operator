@@ -317,62 +317,6 @@ func (p *Container) reconcileDatabase() error {
 	default:
 		return fmt.Errorf("Unknown action %s", p.Action)
 	}
-
-	// switch {
-	// case phase == "":
-		
-	// case phase == dbv1alpha1.Creating:
-	// case phase == dbv1alpha1.DeletionRequested:
-		
-	// case phase == dbv1alpha1.DeletionInProgress:
-	// 	err = driver.Drop(driver)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Deleted)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// case phase == dbv1alpha1.Deleted:
-	// 	log.Info(fmt.Sprintf("Nothing to do"))
-	// case phase == dbv1alpha1.BackupBeforeDeleteRequested:
-	// 	err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.BackupBeforeDeleteInProgress)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	// TODO: decide how to wrangle the writer
-
-	// 	// err = driver.Backup(driver, writer[?])
-	// 	// if err != nil {
-	// 	// 	return err
-	// 	// }
-
-	// 	err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.BackupBeforeDeleteCompleted)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-
-	// 	// TODO: should this then do the dropping too?
-
-	// case phase == dbv1alpha1.BackupBeforeDeleteInProgress:
-	// 	// TODO: more checking, or just initiate the backup-the-drop?
-	// 	// TODO: decide how to wrangle the writer
-
-	// 	// err = driver.Backup(driver, writer[?])
-	// 	// if err != nil {
-	// 	// 	return err
-	// 	// }
-
-	// 	err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.BackupBeforeDeleteCompleted)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-
-	// 	// TODO: should this then do the dropping too?
-
-	// case phase == dbv1alpha1.BackupBeforeDeleteCompleted:
-	// 	log.Info(fmt.Sprintf("Nothing to do"))
-	// }
 	return nil
 }
 
