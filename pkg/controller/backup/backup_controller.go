@@ -87,7 +87,7 @@ func (r *ReconcileBackup) Reconcile(request reconcile.Request) (reconcile.Result
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Backup")
 
-	serviceAccountName := os.GetEnv("SERVICE_ACCOUNT_NAME")
+	serviceAccountName := os.Getenv("SERVICE_ACCOUNT_NAME")
 
 	// Fetch the Backup instance
 	instance := &dbv1alpha1.Backup{}

@@ -93,7 +93,7 @@ func (r *ReconcileDatabase) Reconcile(request reconcile.Request) (reconcile.Resu
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Database")
 
-	serviceAccountName := os.GetEnv("SERVICE_ACCOUNT_NAME")
+	serviceAccountName := os.Getenv("SERVICE_ACCOUNT_NAME")
 
 	// Fetch the Database instance
 	instance := &dbv1alpha1.Database{}
