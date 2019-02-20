@@ -270,6 +270,17 @@ func PatchDatabasePhase(k8sclient client.Client, database *dbv1alpha1.Database, 
 	return nil
 }
 
+func PatchBackupPhase(k8sclient client.Client, backup *dbv1alpha1.Backup, phase dbv1alpha1.BackupPhase) error {
+	backup.Status.Phase = phase
+	log.Info(fmt.Sprintf("Patching %s to %s", backup.Name, phase))
+	err := k8sclient.Update(context.TODO(), backup)
+	if err != nil {
+		log.Error(err, "Error making update")
+		return err
+	}
+	return nil
+}
+
 func (p *Container) reconcileDatabase() error {
 	phase := p.database.Status.Phase
 	log.Info("Getting driver")
@@ -416,6 +427,13 @@ func (p *Container) reconcileBackup() error {
 		err = <- c
 		if err != nil {
 			log.Error(err, "Error from zipping process")
+			return err
+		}
+
+		log.Info("Marking backup as completed")
+		err = PatchBackupPhase(p.backup, dbv1alpha1.Completed)
+		if err != nil {
+			log.Error(err, "Error marking backup as completed")
 			return err
 		}
 		log.Info("Backup completed")
