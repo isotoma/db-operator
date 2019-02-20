@@ -185,7 +185,7 @@ func (p *Container) readFromAwsSecret(s dbv1alpha1.AwsSecretRef) (string, error)
 
 	stringData := out.SecretString
 
-	log.Info(fmt.Sprintf("Got string data: %s", *stringData))
+	log.Info("Got string data")
 
 	bytesData := []byte(*stringData)
 
