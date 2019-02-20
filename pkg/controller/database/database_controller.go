@@ -145,7 +145,7 @@ func (r *ReconcileDatabase) Reconcile(request reconcile.Request) (reconcile.Resu
 			return reconcile.Result{}, err
 		}
 		return reconcile.Result{}, nil
-	case instance.Status.Phase == dbv1alpha1.BackupRequested:
+	case instance.Status.Phase == dbv1alpha1.BackupBeforeDeleteRequested:
 		c := r.BackupThenDelete(instance, provider, serviceAccountName)
 		if err := <-c; err != nil {
 			return reconcile.Result{}, err
