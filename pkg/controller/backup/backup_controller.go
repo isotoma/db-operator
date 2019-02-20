@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 	"fmt"
+	"os"
 
 	dbv1alpha1 "github.com/isotoma/db-operator/pkg/apis/db/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -86,8 +87,7 @@ func (r *ReconcileBackup) Reconcile(request reconcile.Request) (reconcile.Result
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Backup")
 
-	// TODO: work out how to pass this in. I think this ought to be an env-var.
-	serviceAccountName := "db-operator-stage"
+	serviceAccountName := os.GetEnv("SERVICE_ACCOUNT_NAME")
 
 	// Fetch the Backup instance
 	instance := &dbv1alpha1.Backup{}

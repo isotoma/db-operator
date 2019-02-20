@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"os"
 
 	dbv1alpha1 "github.com/isotoma/db-operator/pkg/apis/db/v1alpha1"
 	// "github.com/isotoma/db-operator/pkg/util"
@@ -92,8 +93,7 @@ func (r *ReconcileDatabase) Reconcile(request reconcile.Request) (reconcile.Resu
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Database")
 
-	// TODO: work out how to pass this in. I think this ought to be an env-var.
-	serviceAccountName := "db-operator-stage"
+	serviceAccountName := os.GetEnv("SERVICE_ACCOUNT_NAME")
 
 	// Fetch the Database instance
 	instance := &dbv1alpha1.Database{}
