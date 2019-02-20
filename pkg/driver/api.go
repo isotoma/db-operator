@@ -164,17 +164,8 @@ func (p *Container) readFromKubernetesSecret(s dbv1alpha1.SecretKeyRef) (string,
 	}
 
 	stringValue := string(value)
-
-	log.Info(fmt.Sprintf("Got raw string value: %s", stringValue))
-
-	decoded, err := base64.StdEncoding.DecodeString(stringValue)
-	if err != nil {
-		return "", err
-	}
-
-	log.Info(fmt.Sprintf("Got decoded string value: %s", decoded))
-
-	return string(decoded), nil
+	log.Info(fmt.Sprintf("Got string value, length %d", len(stringValue)))
+	return stringValue, nil
 }
 
 func (p *Container) readFromAwsSecret(s dbv1alpha1.AwsSecretRef) (string, error) {
