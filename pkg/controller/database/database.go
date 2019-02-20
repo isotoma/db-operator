@@ -216,6 +216,10 @@ func (r *ReconcileDatabase) Backup(instance *dbv1alpha1.Database, provider *dbv1
 		if err != nil {
 			c <- err
 		}
+		err = r.UpdatePhase(instance, dbv1alpha1.BackupCompleted)
+		if err != nil {
+			c <- err
+		}
 		c <- nil
 	}()
 	return c
