@@ -131,6 +131,8 @@ func (r *ReconcileBackup) Backup(instance *dbv1alpha1.Backup, provider *dbv1alph
 		if err != nil {
 			c <- err
 		}
+
+		c <- nil
 	}()
 	return c
 }

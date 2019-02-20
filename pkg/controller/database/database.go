@@ -216,7 +216,7 @@ func (r *ReconcileDatabase) Backup(instance *dbv1alpha1.Database, provider *dbv1
 		if err != nil {
 			c <- err
 		}
-		return
+		c <- nil
 	}()
 	return c
 }
@@ -233,7 +233,10 @@ func (r *ReconcileDatabase) BackupThenDelete(instance *dbv1alpha1.Database, prov
 			c <- err
 		}
 		err = r.UpdatePhase(instance, dbv1alpha1.BackupBeforeDeleteCompleted)
-		return
+		if err != nil {
+			c <- err
+		}
+		c <- nil
 	}()
 	return c
 }
