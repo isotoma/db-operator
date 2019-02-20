@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"time"
 	"io"
 	"os"
 	"errors"
@@ -411,10 +412,7 @@ func (p *Container) reconcileBackup() error {
 			return fmt.Errorf("Tried to perform backup, but resource %s was in unexpected status %s", p.Backup, phase)
 		}
 
-		awsConfig := p.getAWSConfig()
-
-		key := "fixme-test-key"
-
+		key := p.database.Spec.BackupTo.S3.Prefix + "/" + time.Now().Format(time.RFC3339) + '.gzip'
 		log.Info(fmt.Sprintf("Using s3 keyfrom database spec: %s", key))
 
 		reader, writer := io.Pipe()
@@ -425,6 +423,8 @@ func (p *Container) reconcileBackup() error {
 			log.Error(err, "Error getting backup reader")
 			return err
 		}
+
+		awsConfig := p.getAWSConfig()
 
 		c := make(chan error)
 
