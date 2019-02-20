@@ -8,7 +8,6 @@ import (
 	"errors"
 	"compress/gzip"
 	"encoding/json"
-	"encoding/base64"
 
 	dbv1alpha1 "github.com/isotoma/db-operator/pkg/apis/db/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
