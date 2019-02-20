@@ -412,7 +412,8 @@ func (p *Container) reconcileBackup() error {
 			return fmt.Errorf("Tried to perform backup, but resource %s was in unexpected status %s", p.Backup, phase)
 		}
 
-		key := p.database.Spec.BackupTo.S3.Prefix + "/" + time.Now().Format(time.RFC3339) + '.gzip'
+		nowStr := time.Now().Format(time.RFC3339)
+		key := p.database.Spec.BackupTo.S3.Prefix + "/" + nowStr + ".gzip"
 		log.Info(fmt.Sprintf("Using s3 keyfrom database spec: %s", key))
 
 		reader, writer := io.Pipe()
