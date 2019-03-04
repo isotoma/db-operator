@@ -36,7 +36,6 @@ type Container struct {
 	k8sclient client.Client
 	backup    dbv1alpha1.Backup
 	database  dbv1alpha1.Database
-	secret    corev1.Secret
 	Namespace string
 	Database  string
 	Backup    string
@@ -132,20 +131,18 @@ func (p *Container) setup() error {
 	if p.Database != "" {
 		log.Info("Getting database")
 		if err := p.getResource(p.Database, &p.database); err != nil {
+			log.Error(err, "Error getting database")
 			return err
-		}
-		if err := p.getResource(p.Database, &p.secret); err != nil {
-			if !k8serrors.IsNotFound(err) {
-				return err
-			}
 		}
 	}
 	if p.Backup != "" {
 		log.Info("Getting backup")
 		if err := p.getResource(p.Backup, &p.backup); err != nil {
+			log.Error(err, "Error getting backup")
 			return err
 		}
 		if err := p.getResource(p.backup.Spec.Database, &p.database); err != nil {
+			log.Error(err, "Error getting database for backup")
 			return err
 		}
 	}
@@ -529,6 +526,7 @@ func (p *Container) Run() error {
 	log = zapr.NewLogger(zlog).WithName("db-operator")
 
 	if err := p.setup(); err != nil {
+		log.Error(err, "Error running setup")
 		return err
 	}
 	log.Info("Setup done")
