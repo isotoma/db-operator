@@ -316,6 +316,10 @@ func (p *Container) GeneratePasswordSecret(secretKeyRef dbv1alpha1.SecretKeyRef)
 		return err
 	}
 
+	if k8sSecret.Data == nil {
+		k8sSecret.Data = make(map[string][]byte)
+	}
+
 	k8sSecret.Data[secretKeyRef.Key] = []byte(newpw)
 	err = p.k8sclient.Update(context.TODO(), k8sSecret)
 	if err != nil {
