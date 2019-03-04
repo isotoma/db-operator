@@ -22,6 +22,7 @@ const (
 
 // SecretKeyRef references to a kubernetes secret key
 type SecretKeyRef struct {
+	GenerateIfNotExists bool `json:"generateIfNotExists,omitempty"`
 	Name string `json:"name"`
 	Key  string `json:"key"`
 }

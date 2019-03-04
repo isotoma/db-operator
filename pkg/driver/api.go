@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
+	passwordGenerator "github.com/sethvargo/go-password/password"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -248,6 +249,14 @@ func (p *Container) getDriver() (*Driver, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if spec.UserCredentials.Password.ValueFrom.SecretKeyRef.GenerateIfNotExists == true {
+		err = p.GeneratePasswordSecret(spec.UserCredentials.Password.ValueFrom.SecretKeyRef)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	userPassword, err := p.getCredential(spec.UserCredentials.Password)
 	if err != nil {
 		return nil, err
@@ -257,6 +266,70 @@ func (p *Container) getDriver() (*Driver, error) {
 	driver.DBName = spec.Name
 
 	return driver, nil
+}
+
+func (p *Container) GeneratePasswordSecret(secretKeyRef dbv1alpha1.SecretKeyRef) error {
+	k8sSecret := &corev1.Secret{}
+	err := p.getResource(secretKeyRef.Name, k8sSecret)
+	found := !k8serrors.IsNotFound(err)
+
+	if err != nil && !found {
+		log.Error(err, "Error getting k8s secret, but wasn't a NotFound error")
+		return err
+	}
+
+	if found {
+		value := k8sSecret.Data[secretKeyRef.Key]
+
+		if value != nil && string(value) != "" {
+			log.Info("Secret already exists and has a value set")
+			return nil
+		}
+
+		keys := make([]string, len(k8sSecret.Data))
+		i := 0
+		for k := range k8sSecret.Data {
+			keys[i] = k
+			i++
+		}
+
+		
+		numKeys := len(keys)
+		if numKeys > 1 {
+			err = fmt.Errorf("Expected one or zero keys")
+			log.Error(err, "Too many keys")
+			return err
+		}
+
+		if numKeys == 1 {
+			key := keys[0]
+			if key != secretKeyRef.Key {
+				err = fmt.Errorf("Expected single existing key %s to match %s", key, secretKeyRef.Key)
+				log.Error(err, "Key mismatch")
+				return err
+			}
+		}
+	} else {
+		k8sSecret.Name = secretKeyRef.Name
+	}
+
+	newpw, err := GeneratePassword(30)
+	if err != nil {
+		log.Error(err, "Error generating password")
+		return err
+	}
+
+	k8sSecret.Data[secretKeyRef.Key] = []byte(newpw)
+	err = p.k8sclient.Update(context.TODO(), k8sSecret)
+	if err != nil {
+		log.Error(err, "Error ")
+		return err
+	}
+	return nil
+}
+
+func GeneratePassword(length int) (string, error) {
+	return passwordGenerator.Generate(length, 0, 0, false, true)
 }
 
 func PatchDatabasePhase(k8sclient client.Client, database *dbv1alpha1.Database, phase dbv1alpha1.DatabasePhase) error {
