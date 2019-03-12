@@ -6,7 +6,7 @@ import (
 	"os"
 
 	dbv1alpha1 "github.com/isotoma/db-operator/pkg/apis/db/v1alpha1"
-	// "github.com/isotoma/db-operator/pkg/util"
+	"github.com/isotoma/db-operator/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -113,6 +113,9 @@ func (r *ReconcileDatabase) Reconcile(request reconcile.Request) (reconcile.Resu
 
 	reqLogger.Info(fmt.Sprintf("Current phase: %s", instance.Status.Phase))
 	switch {
+	case instance.ObjectMeta.DeletionTimestamp != nil:
+		err := <- r.BackupThenDelete(instance, provider, serviceAccountName)
+		return reconcile.Result{}, err
 	case instance.Status.Phase == "":
 		c := r.Create(instance, provider, serviceAccountName)
 		if err := <-c; err != nil {
@@ -123,16 +126,11 @@ func (r *ReconcileDatabase) Reconcile(request reconcile.Request) (reconcile.Resu
 		// the driver has completed the creation process. We need to add a
 		// finalizer so we have the opportunity to drop/backup the database
 		// if this resource is deleted
-		// if util.AddFinalizer(&instance.ObjectMeta, finalizerName) {
-		// 	if err := r.client.Update(context.TODO(), instance); err != nil {
-		// 		return reconcile.Result{}, err
-		// 	}
-		// }
-		// if instance.ObjectMeta.DeletionTimestamp != nil {
-		// 	err := <- r.BackupThenDrop(instance, provider, serviceAccountName)
-		// 	return reconcile.Result{}, err
-		// }
-		reqLogger.Info("TODO: finalizers")
+		if util.AddFinalizer(&instance.ObjectMeta, finalizerName) {
+			if err := r.client.Update(context.TODO(), instance); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
 	case instance.Status.Phase == dbv1alpha1.DeletionRequested:
 		c := r.Drop(instance, provider, serviceAccountName)
 		if err := <-c; err != nil {
@@ -151,15 +149,14 @@ func (r *ReconcileDatabase) Reconcile(request reconcile.Request) (reconcile.Resu
 			return reconcile.Result{}, err
 		}
 		return reconcile.Result{}, nil
-	case instance.Status.Phase == dbv1alpha1.Deleted:
+	case instance.Status.Phase == dbv1alpha1.BackupBeforeDeleteCompleted:
 		// The driver has completed the deletion process, so we can remove
 		// the finalizer and allow the resource to be finally deleted
-		// if util.RemoveFinalizer(&instance.ObjectMeta, finalizerName) {
-		// 	if err := r.client.Update(context.TODO(), instance); err != nil {
-		// 		return reconcile.Result{}, err
-		// 	}
-		// }
-		reqLogger.Info("TODO: finalizers")
+		if util.RemoveFinalizer(&instance.ObjectMeta, finalizerName) {
+			if err := r.client.Update(context.TODO(), instance); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
 	}
 	return reconcile.Result{}, nil
 }
