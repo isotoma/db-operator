@@ -78,12 +78,6 @@ type ReconcileDatabase struct {
 	scheme *runtime.Scheme
 }
 
-// UpdatePhase updates the phase of the database to the one requested
-func (r *ReconcileDatabase) UpdatePhase(instance *dbv1alpha1.Database, phase dbv1alpha1.DatabasePhase) error {
-	instance.Status.Phase = phase
-	return r.client.Update(context.TODO(), instance)
-}
-
 // Reconcile reads that state of the cluster for a Database object and makes changes based on the state read
 // and what is in the Database.Spec
 // Note:

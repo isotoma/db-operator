@@ -11,6 +11,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/isotoma/db-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -208,7 +209,7 @@ func (r *ReconcileDatabase) Drop(instance *dbv1alpha1.Database, provider *dbv1al
 func (r *ReconcileDatabase) Backup(instance *dbv1alpha1.Database, provider *dbv1alpha1.Provider, serviceAccountName string) chan error {
 	c := make(chan error)
 	go func() {
-		err := r.UpdatePhase(instance, dbv1alpha1.BackupInProgress)
+		err := util.PatchDatabasePhase(r.client, instance, dbv1alpha1.BackupInProgress)
 		if err != nil {
 			c <- err
 		}
@@ -216,7 +217,7 @@ func (r *ReconcileDatabase) Backup(instance *dbv1alpha1.Database, provider *dbv1
 		if err != nil {
 			c <- err
 		}
-		err = r.UpdatePhase(instance, dbv1alpha1.BackupCompleted)
+		err = util.PatchDatabasePhase(r.client, instance, dbv1alpha1.BackupCompleted)
 		if err != nil {
 			c <- err
 		}
@@ -228,7 +229,7 @@ func (r *ReconcileDatabase) Backup(instance *dbv1alpha1.Database, provider *dbv1
 func (r *ReconcileDatabase) BackupThenDelete(instance *dbv1alpha1.Database, provider *dbv1alpha1.Provider, serviceAccountName string) chan error {
 	c := make(chan error)
 	go func() {
-		err := r.UpdatePhase(instance, dbv1alpha1.BackupBeforeDeleteInProgress)
+		err := util.PatchDatabasePhase(r.client, instance, dbv1alpha1.BackupBeforeDeleteInProgress)
 		if err != nil {
 			c <- err
 		}
@@ -236,7 +237,7 @@ func (r *ReconcileDatabase) BackupThenDelete(instance *dbv1alpha1.Database, prov
 		if err != nil {
 			c <- err
 		}
-		err = r.UpdatePhase(instance, dbv1alpha1.BackupBeforeDeleteCompleted)
+		err = util.PatchDatabasePhase(r.client, instance, dbv1alpha1.BackupBeforeDeleteCompleted)
 		if err != nil {
 			c <- err
 		}

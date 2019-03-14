@@ -128,8 +128,3 @@ func (r *ReconcileBackup) Reconcile(request reconcile.Request) (reconcile.Result
 
 	return reconcile.Result{}, nil
 }
-
-func (r *ReconcileBackup) UpdatePhase(instance *dbv1alpha1.Backup, phase dbv1alpha1.BackupPhase) error {
-	instance.Status.Phase = phase
-	return r.client.Update(context.TODO(), instance)
-}

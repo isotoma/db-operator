@@ -12,6 +12,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	util "github.com/isotoma/db-operator/pkg/util"
 )
 
 
@@ -98,7 +100,7 @@ func (r *ReconcileBackup) createJobAndBlock(instance *dbv1alpha1.Backup, provide
 func (r *ReconcileBackup) Backup(instance *dbv1alpha1.Backup, provider *dbv1alpha1.Provider, serviceAccountName string) chan error {
 	c := make(chan error)
 	go func() {
-		err := r.UpdatePhase(instance, dbv1alpha1.Starting)
+		err := util.PatchBackupPhase(r.client, instance, dbv1alpha1.Starting)
 		if err != nil {
 			c <- err
 		}

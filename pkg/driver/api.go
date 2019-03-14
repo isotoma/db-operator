@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/isotoma/db-operator/pkg/apis"
+	"github.com/isotoma/db-operator/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -333,28 +334,6 @@ func GeneratePassword(length int) (string, error) {
 	return passwordGenerator.Generate(length, 0, 0, false, true)
 }
 
-func PatchDatabasePhase(k8sclient client.Client, database *dbv1alpha1.Database, phase dbv1alpha1.DatabasePhase) error {
-	database.Status.Phase = phase
-	log.Info(fmt.Sprintf("Patching %s to %s", database.Name, phase))
-	err := k8sclient.Update(context.TODO(), database)
-	if err != nil {
-		log.Error(err, "Error making update")
-		return err
-	}
-	return nil
-}
-
-func PatchBackupPhase(k8sclient client.Client, backup *dbv1alpha1.Backup, phase dbv1alpha1.BackupPhase) error {
-	backup.Status.Phase = phase
-	log.Info(fmt.Sprintf("Patching %s to %s", backup.Name, phase))
-	err := k8sclient.Update(context.TODO(), backup)
-	if err != nil {
-		log.Error(err, "Error making update")
-		return err
-	}
-	return nil
-}
-
 func (p *Container) reconcileDatabase() error {
 	phase := p.database.Status.Phase
 	log.Info("Getting driver")
@@ -371,7 +350,7 @@ func (p *Container) reconcileDatabase() error {
 		if (phase != "") && (phase != dbv1alpha1.Creating) && (phase != dbv1alpha1.Created) {
 			return fmt.Errorf("Tried to create database, but resource %s was in unexpected status %s", p.Database, phase)
 		}
-		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Creating)
+		err = util.PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Creating)
 		if err != nil {
 			return err
 		}
@@ -379,7 +358,7 @@ func (p *Container) reconcileDatabase() error {
 		if err != nil {
 			return err
 		}
-		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Created)
+		err = util.PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Created)
 		if err != nil {
 			return err
 		}
@@ -387,7 +366,7 @@ func (p *Container) reconcileDatabase() error {
 		if (phase != dbv1alpha1.DeletionRequested) && (phase != dbv1alpha1.DeletionInProgress) && (phase != dbv1alpha1.Deleted) {
 			return fmt.Errorf("Tried to drop database, but resource %s was in unexpected status %s", p.Database, phase)
 		}
-		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.DeletionInProgress)
+		err = util.PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.DeletionInProgress)
 		if err != nil {
 			return err
 		}
@@ -395,7 +374,7 @@ func (p *Container) reconcileDatabase() error {
 		if err != nil {
 			return err
 		}
-		err = PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Deleted)
+		err = util.PatchDatabasePhase(p.k8sclient, &p.database, dbv1alpha1.Deleted)
 		if err != nil {
 			return err
 		}
@@ -505,7 +484,7 @@ func (p *Container) reconcileBackup() error {
 		}
 
 		log.Info("Marking backup as completed")
-		err = PatchBackupPhase(p.k8sclient, &p.backup, dbv1alpha1.Completed)
+		err = util.PatchBackupPhase(p.k8sclient, &p.backup, dbv1alpha1.Completed)
 		if err != nil {
 			log.Error(err, "Error marking backup as completed")
 			return err
