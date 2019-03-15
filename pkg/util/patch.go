@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/apimachinery/pkg/types"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 
 	dbv1alpha1 "github.com/isotoma/db-operator/pkg/apis/db/v1alpha1"
@@ -13,28 +15,44 @@ import (
 var log = logf.Log.WithName("util/patch")
 
 func PatchDatabasePhase(k8sclient client.Client, database *dbv1alpha1.Database, phase dbv1alpha1.DatabasePhase) error {
-	database.Status.Phase = phase
-	log.Info(fmt.Sprintf("Patching %s to %s", database.Name, phase))
-	err := k8sclient.Status().Update(context.TODO(), database)
-	if err != nil {
-		log.Error(err, "Error updating database status")
-		return err
+	for {
+		database.Status.Phase = phase
+		log.Info(fmt.Sprintf("Patching %s to %s", database.Name, phase))
+		err := k8sclient.Status().Update(context.TODO(), database)
+		if err != nil {
+			if errors.IsConflict(err) {
+				log.Info("Encountered conflict error, retrying")
+				// TODO: backoff
+				k8sclient.Get(context.TODO(), types.NamespacedName{Namespace: database.ObjectMeta.Namespace, Name: database.ObjectMeta.Name}, database)
+				continue
+			} else {
+				log.Error(err, "Error updating database status")
+				return err
+			}
+		}
+		break
 	}
 	return nil
 }
 
 func PatchBackupPhase(k8sclient client.Client, backup *dbv1alpha1.Backup, phase dbv1alpha1.BackupPhase) error {
-	backup.Status.Phase = phase
-	log.Info(fmt.Sprintf("Patching %s to %s", backup.Name, phase))
-	err := k8sclient.Status().Update(context.TODO(), backup)
-	if err != nil {
-		err := k8sclient.Update(context.TODO(), backup)
-		log.Error(err, "Error updating backup status (maybe the feature flag is disabled)")
-		log.Info("Trying to just update the whole resource")
+	for {
+		backup.Status.Phase = phase
+		log.Info(fmt.Sprintf("Patching %s to %s", backup.Name, phase))
+		err := k8sclient.Status().Update(context.TODO(), backup)
 		if err != nil {
-			log.Error(err, "Error making update")
+			if errors.IsConflict(err) {
+				log.Info("Encountered conflict error, retrying")
+				// TODO: backoff
+				k8sclient.Get(context.TODO(), types.NamespacedName{Namespace: backup.ObjectMeta.Namespace, Name: backup.ObjectMeta.Name}, backup)
+				continue
+			} else {
+				log.Error(err, "Error updating backup status")
+				return err
+			}
 			return err
 		}
+		break
 	}
 	return nil
 }
