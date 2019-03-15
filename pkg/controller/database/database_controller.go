@@ -108,11 +108,11 @@ func (r *ReconcileDatabase) Reconcile(request reconcile.Request) (reconcile.Resu
 	reqLogger.Info(fmt.Sprintf("Current phase: %s", instance.Status.Phase))
 	switch {
 	case instance.ObjectMeta.DeletionTimestamp != nil:
-		err := <- r.BackupThenDelete(instance, provider, serviceAccountName)
-		return reconcile.Result{}, err
+		// err := <- r.BackupThenDelete(instance, provider, serviceAccountName)
+		// return reconcile.Result{}, err
 	case instance.Status.Phase == "":
-		c := r.Create(instance, provider, serviceAccountName)
-		if err := <-c; err != nil {
+		err := r.Create(instance, provider, serviceAccountName)
+		if err != nil {
 			return reconcile.Result{}, err
 		}
 		return reconcile.Result{}, nil
@@ -122,24 +122,26 @@ func (r *ReconcileDatabase) Reconcile(request reconcile.Request) (reconcile.Resu
 		// if this resource is deleted
 		if util.AddFinalizer(&instance.ObjectMeta, finalizerName) {
 			if err := r.client.Update(context.TODO(), instance); err != nil {
+				log.Error(err, "Error adding finalizer")
 				return reconcile.Result{}, err
 			}
 		}
+		return reconcile.Result{}, nil
 	case instance.Status.Phase == dbv1alpha1.DeletionRequested:
-		c := r.Drop(instance, provider, serviceAccountName)
-		if err := <-c; err != nil {
+		err := r.Drop(instance, provider, serviceAccountName)
+		if err != nil {
 			return reconcile.Result{}, err
 		}
 		return reconcile.Result{}, nil
 	case instance.Status.Phase == dbv1alpha1.BackupRequested:
-		c := r.Backup(instance, provider, serviceAccountName)
-		if err := <-c; err != nil {
+		err := r.Backup(instance, provider, serviceAccountName)
+		if err != nil {
 			return reconcile.Result{}, err
 		}
 		return reconcile.Result{}, nil
 	case instance.Status.Phase == dbv1alpha1.BackupBeforeDeleteRequested:
-		c := r.BackupThenDelete(instance, provider, serviceAccountName)
-		if err := <-c; err != nil {
+		err := r.BackupThenDelete(instance, provider, serviceAccountName)
+		if err != nil {
 			return reconcile.Result{}, err
 		}
 		return reconcile.Result{}, nil
@@ -151,6 +153,7 @@ func (r *ReconcileDatabase) Reconcile(request reconcile.Request) (reconcile.Resu
 				return reconcile.Result{}, err
 			}
 		}
+		return reconcile.Result{}, nil
 	}
 	return reconcile.Result{}, nil
 }

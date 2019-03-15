@@ -119,12 +119,19 @@ func (r *ReconcileBackup) Reconcile(request reconcile.Request) (reconcile.Result
 
 	switch {
 	case instance.Status.Phase == "":
-		c := r.Backup(instance, provider, serviceAccountName)
-		if err := <-c; err != nil {
+		err = r.Backup(instance, provider, serviceAccountName)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, nil
+	case instance.Status.Phase == dbv1alpha1.Completed:
+		err = r.UpdateDatabaseStatus(instance, database)
+		if err != nil {
 			return reconcile.Result{}, err
 		}
 		return reconcile.Result{}, nil
 	}
+	
 
 	return reconcile.Result{}, nil
 }

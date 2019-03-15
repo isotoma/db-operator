@@ -2,16 +2,12 @@ package backup
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"time"
 
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	dbv1alpha1 "github.com/isotoma/db-operator/pkg/apis/db/v1alpha1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 
 	util "github.com/isotoma/db-operator/pkg/util"
 )
@@ -23,32 +19,7 @@ type JobConfig struct {
 	Env []corev1.EnvVar
 }
 
-func (r *ReconcileBackup) blockUntilJobCompleted(Namespace, Name string) error {
-	delay, _ := time.ParseDuration("30s")
-	for {
-		time.Sleep(delay)
-		found := batchv1.Job{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{
-			Namespace: Namespace,
-			Name:      Name,
-		}, &found)
-		if err != nil && k8serrors.IsNotFound(err) {
-			log.Info("Waiting for Job resource")
-		} else if err != nil {
-			return err
-		} else {
-			if found.Status.Succeeded > 0 {
-				return nil
-			} else if found.Status.Failed > 0 {
-				return errors.New("Job failed")
-			} else {
-				log.Info(fmt.Sprintf("Job phase is %+v, waiting", found.Status))
-			}
-		}
-	}
-}
-
-func (r *ReconcileBackup) createJobAndBlock(instance *dbv1alpha1.Backup, provider *dbv1alpha1.Provider, jobConfig JobConfig) error {
+func (r *ReconcileBackup) createJob(instance *dbv1alpha1.Backup, provider *dbv1alpha1.Provider, jobConfig JobConfig) error {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: instance.Name + "-" + jobConfig.Name + "-",
@@ -84,57 +55,60 @@ func (r *ReconcileBackup) createJobAndBlock(instance *dbv1alpha1.Backup, provide
 		return err
 	}
 
-	log.Info(fmt.Sprintf("Waiting for job %s in namespace %s to complete", jobName, instance.Namespace))
-	err = r.blockUntilJobCompleted(instance.Namespace, jobName)
-	if err != nil {
-		log.Info(fmt.Sprintf("Error while waiting for job %s in namespace %s to complete", jobName, instance.Namespace))
-		return err
-	}
-
-	log.Info(fmt.Sprintf("Job %s in namespace %s completed", jobName, instance.Namespace))
-
 	return nil
 	
 }
 
-func (r *ReconcileBackup) Backup(instance *dbv1alpha1.Backup, provider *dbv1alpha1.Provider, serviceAccountName string) chan error {
-	c := make(chan error)
-	go func() {
-		err := util.PatchBackupPhase(r.client, instance, dbv1alpha1.Starting)
-		if err != nil {
-			c <- err
-		}
+func (r *ReconcileBackup) Backup(instance *dbv1alpha1.Backup, provider *dbv1alpha1.Provider, serviceAccountName string) error {
+	err := util.PatchBackupPhase(r.client, instance, dbv1alpha1.Starting)
+	if err != nil {
+		return err
+	}
 
-		config := JobConfig{
-			Name: "backup",
-			ServiceAccountName: serviceAccountName,
-			Env: []corev1.EnvVar {
-				corev1.EnvVar{
-					Name: "DB_OPERATOR_ACTION",
-					Value: "backup",
-				},
-				corev1.EnvVar{
-					Name: "DB_OPERATOR_NAMESPACE",
-					Value: instance.Namespace,
-				},
-				corev1.EnvVar{
-					Name: "DB_OPERATOR_DATABASE",
-					Value: instance.Spec.Database,
-				},
-				corev1.EnvVar{
-					Name: "DB_OPERATOR_BACKUP",
-					Value: instance.Name,
-				},
+	config := JobConfig{
+		Name: "backup",
+		ServiceAccountName: serviceAccountName,
+		Env: []corev1.EnvVar {
+			corev1.EnvVar{
+				Name: "DB_OPERATOR_ACTION",
+				Value: "backup",
 			},
-		}
+			corev1.EnvVar{
+				Name: "DB_OPERATOR_NAMESPACE",
+				Value: instance.Namespace,
+			},
+			corev1.EnvVar{
+				Name: "DB_OPERATOR_DATABASE",
+				Value: instance.Spec.Database,
+			},
+			corev1.EnvVar{
+				Name: "DB_OPERATOR_BACKUP",
+				Value: instance.Name,
+			},
+		},
+	}
 
-		err = r.createJobAndBlock(instance, provider, config)
+	return r.createJob(instance, provider, config)
+}
 
+func (r *ReconcileBackup) UpdateDatabaseStatus(instance *dbv1alpha1.Backup, database *dbv1alpha1.Database) error {
+	log.Info("Updating database status after backup")
+	if database.Status.Phase == dbv1alpha1.BackupInProgress {
+		err := util.PatchDatabasePhase(r.client, database, dbv1alpha1.BackupCompleted)
 		if err != nil {
-			c <- err
+			log.Error(err, "Error patching database to BackupCompleted")
+			return err
+			
 		}
-
-		c <- nil
-	}()
-	return c
+	} else if database.Status.Phase == dbv1alpha1.BackupBeforeDeleteInProgress {
+		err := util.PatchDatabasePhase(r.client, database, dbv1alpha1.BackupBeforeDeleteCompleted)
+		if err != nil {
+			log.Error(err, "Error patching database to BackupBeforeDeleteCompleted")
+			return err
+			
+		}
+	} else {
+		log.Info("Database not in BackupInProgress or BackupBeforeDeleteInProgress, so not updating the status.")
+	}
+	return nil
 }

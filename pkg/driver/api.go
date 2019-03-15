@@ -546,6 +546,7 @@ func (p *Container) reconcileBackup() error {
 			log.Error(err, "Error marking backup as completed")
 			return err
 		}
+
 		log.Info("Backup completed")
 		return nil
 	default:

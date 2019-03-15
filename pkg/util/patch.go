@@ -23,7 +23,10 @@ func PatchDatabasePhase(k8sclient client.Client, database *dbv1alpha1.Database, 
 			if errors.IsConflict(err) {
 				log.Info("Encountered conflict error, retrying")
 				// TODO: backoff
-				k8sclient.Get(context.TODO(), types.NamespacedName{Namespace: database.ObjectMeta.Namespace, Name: database.ObjectMeta.Name}, database)
+				err = RefreshDatabase(k8sclient, database)
+				if err != nil {
+					return err
+				}
 				continue
 			} else {
 				log.Error(err, "Error updating database status")
@@ -35,6 +38,16 @@ func PatchDatabasePhase(k8sclient client.Client, database *dbv1alpha1.Database, 
 	return nil
 }
 
+func RefreshDatabase(k8sclient client.Client, database *dbv1alpha1.Database) error {
+	return k8sclient.Get(
+		context.TODO(),
+		types.NamespacedName{
+			Namespace: database.ObjectMeta.Namespace,
+			Name: database.ObjectMeta.Name,
+		},
+		database)
+}
+
 func PatchBackupPhase(k8sclient client.Client, backup *dbv1alpha1.Backup, phase dbv1alpha1.BackupPhase) error {
 	for {
 		backup.Status.Phase = phase
@@ -44,7 +57,10 @@ func PatchBackupPhase(k8sclient client.Client, backup *dbv1alpha1.Backup, phase 
 			if errors.IsConflict(err) {
 				log.Info("Encountered conflict error, retrying")
 				// TODO: backoff
-				k8sclient.Get(context.TODO(), types.NamespacedName{Namespace: backup.ObjectMeta.Namespace, Name: backup.ObjectMeta.Name}, backup)
+				err = RefreshBackup(k8sclient, backup)
+				if err != nil {
+					return err
+				}
 				continue
 			} else {
 				log.Error(err, "Error updating backup status")
@@ -55,4 +71,14 @@ func PatchBackupPhase(k8sclient client.Client, backup *dbv1alpha1.Backup, phase 
 		break
 	}
 	return nil
+}
+
+func RefreshBackup(k8sclient client.Client, backup *dbv1alpha1.Backup) error {
+	return k8sclient.Get(
+		context.TODO(),
+		types.NamespacedName{
+			Namespace: backup.ObjectMeta.Namespace,
+			Name: backup.ObjectMeta.Name,
+		},
+		backup)
 }
