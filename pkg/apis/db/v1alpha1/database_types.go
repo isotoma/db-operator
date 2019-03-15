@@ -58,9 +58,15 @@ type S3Backup struct {
 	Prefix string `json:"prefix"`
 }
 
+// NullBackup indicates there we don't want a backup
+type NullBackup struct {
+	DoNotBackup	bool `json:"doNotBackup,omitempty"`
+}
+
 // BackupTo may support other destinations than S3
 type BackupTo struct {
 	S3 S3Backup `json:"s3"`
+	Null NullBackup `json:"null"`
 }
 
 // AwsCredentials are literal AWS credentials used for backups and secrets

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 	"io"
+	"io/ioutil"
 	"os"
 	"errors"
 	"compress/gzip"
@@ -62,7 +63,64 @@ type Driver struct {
 	Backup   func(*Driver) (*io.ReadCloser, error)
 }
 
+type Saver interface {
+	Save(*io.PipeReader) error
+	Prepare(dbv1alpha1.Database) error
+}
+
+type S3Saver struct {
+	uploader *s3manager.Uploader
+	key	string
+	bucketName	string
+}
+
+type NullSaver struct {}
+
 var log logr.Logger
+
+func (s S3Saver) Prepare(d dbv1alpha1.Database) error {
+	nowStr := time.Now().Format(time.RFC3339)
+	s.key = d.Spec.BackupTo.S3.Prefix + "/" + nowStr + ".gzip"
+	log.Info(fmt.Sprintf("Using s3 keyfrom database spec: %s", s.key))
+
+	awsConfig := getAWSConfig(d)
+
+	sess, err := session.NewSession(awsConfig)
+	if err != nil {
+		log.Error(err, "Error getting AWS session")
+		return err
+	}
+	log.Info("Got AWS session")
+	s.uploader = s3manager.NewUploader(sess)
+	log.Info("Got uploader")
+	s.bucketName = d.Spec.BackupTo.S3.Bucket
+	return nil
+}
+
+func (s S3Saver) Save(r *io.PipeReader) error {
+	// log.Info(fmt.Sprintf("Uploading from backup reader to %s key %s", bucketName, key))
+	response, err := s.uploader.Upload(&s3manager.UploadInput{
+		Body:   r,
+		Bucket: aws.String(s.bucketName),
+		Key:    aws.String(s.key),
+	})
+	if err != nil {
+		log.Error(err, "Error getting upload response")
+		return err
+	}
+	log.Info(fmt.Sprintf("Response: %+v", response))
+	return nil
+}
+
+func (s NullSaver) Prepare(d dbv1alpha1.Database) error {
+	return nil
+}
+
+func (s NullSaver) Save(r *io.PipeReader) error {
+	log.Info("Using NullSaver which will not save the backup")
+	io.Copy(ioutil.Discard, r)
+	return nil
+}
 
 // RegisterDriver registers your driver with the provider
 func (p *Container) RegisterDriver(d *Driver) error {
@@ -168,7 +226,7 @@ func (p *Container) readFromKubernetesSecret(s dbv1alpha1.SecretKeyRef) (string,
 }
 
 func (p *Container) readFromAwsSecret(s dbv1alpha1.AwsSecretRef) (string, error) {
-	awsConfig := p.getAWSConfig()
+	awsConfig := getAWSConfig(p.database)
 
 	sess, err := session.NewSession(awsConfig)
 	if err != nil {
@@ -384,21 +442,33 @@ func (p *Container) reconcileDatabase() error {
 	return nil
 }
 
-func (p *Container) getAWSConfig() *aws.Config {
+func getAWSConfig(d dbv1alpha1.Database) *aws.Config {
 	awsConfig := &aws.Config{
-		Region:      aws.String(p.database.Spec.BackupTo.S3.Region),
+		Region:      aws.String(d.Spec.BackupTo.S3.Region),
 	}
 
-	if (p.database.Spec.AwsCredentials.AccessKeyID != "") || (p.database.Spec.AwsCredentials.SecretAccessKey != "") {
+	if (d.Spec.AwsCredentials.AccessKeyID != "") || (d.Spec.AwsCredentials.SecretAccessKey != "") {
 		log.Info("Using AWS credentials from database spec")
 		awsConfig.Credentials = credentials.NewStaticCredentials(
-			p.database.Spec.AwsCredentials.AccessKeyID,
-			p.database.Spec.AwsCredentials.SecretAccessKey,
+			d.Spec.AwsCredentials.AccessKeyID,
+			d.Spec.AwsCredentials.SecretAccessKey,
 			"")
 	} else {
 		log.Info("Not using configured AWS credentials, relying on metadata")
 	}
 	return awsConfig
+}
+
+
+
+func (p *Container) getSaver() (Saver, error) {
+	if (p.database.Spec.BackupTo.S3.Bucket != "") {
+		return S3Saver{}, nil
+
+	} else if (p.database.Spec.BackupTo.Null.DoNotBackup == true) {
+		return NullSaver{}, nil
+	}
+	return nil, fmt.Errorf("No backup configuration given. Don't want to delete a database without knowing what to do with the data.")
 }
 
 func (p *Container) reconcileBackup() error {
@@ -420,9 +490,13 @@ func (p *Container) reconcileBackup() error {
 			return fmt.Errorf("Tried to perform backup, but resource %s was in unexpected status %s", p.Backup, phase)
 		}
 
-		nowStr := time.Now().Format(time.RFC3339)
-		key := p.database.Spec.BackupTo.S3.Prefix + "/" + nowStr + ".gzip"
-		log.Info(fmt.Sprintf("Using s3 keyfrom database spec: %s", key))
+		saver, err := p.getSaver()
+		if err != nil {
+			log.Error(err, "Unable to get saver. Unwilling to delete database.")
+			return err
+		}
+
+		saver.Prepare(p.database)
 
 		reader, writer := io.Pipe()
 		log.Info("Got pipe")
@@ -432,8 +506,6 @@ func (p *Container) reconcileBackup() error {
 			log.Error(err, "Error getting backup reader")
 			return err
 		}
-
-		awsConfig := p.getAWSConfig()
 
 		c := make(chan error)
 
@@ -454,26 +526,11 @@ func (p *Container) reconcileBackup() error {
 			c <- nil
 		}()
 
-		sess, err := session.NewSession(awsConfig)
+		err = saver.Save(reader)
 		if err != nil {
-			log.Error(err, "Error getting AWS session")
+			log.Error(err, "Error saving")
 			return err
 		}
-		log.Info("Got AWS session")
-		uploader := s3manager.NewUploader(sess)
-		log.Info("Got uploader")
-		bucketName := p.database.Spec.BackupTo.S3.Bucket
-		log.Info(fmt.Sprintf("Uploading from backup reader to %s key %s", bucketName, key))
-		response, err := uploader.Upload(&s3manager.UploadInput{
-			Body:   reader,
-			Bucket: aws.String(bucketName),
-			Key:    aws.String(key),
-		})
-		if err != nil {
-			log.Error(err, "Error getting upload response")
-			return err
-		}
-		log.Info(fmt.Sprintf("Response: %+v", response))
 
 		log.Info("Waiting for Backup to complete...")
 
