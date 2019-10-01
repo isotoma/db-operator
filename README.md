@@ -8,6 +8,10 @@ Conceptually db-operator decouples the lifecycle of a database **instance** from
 
 This is particularly useful when running many production or pre-production workloads within one Kubernetes cluster sharing a single database instance, which is a common deployment pattern.
 
+## Drivers
+
+Drivers are available for [PostgreSQL](https://github.com/isotoma/db-operator-postgresql) and [MySQL](https://github.com/isotoma/db-operator-mysql).
+
 ## Lifecycle
 
 This diagram shows both the phases of the database resource (ellipses) and the backup resource (in diamonds):
