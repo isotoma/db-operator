@@ -272,7 +272,8 @@ func (in *DatabaseSpec) DeepCopyInto(out *DatabaseSpec) {
 			(*out)[key] = val
 		}
 	}
-	out.Credentials = in.Credentials
+	out.MasterCredentials = in.MasterCredentials
+	out.UserCredentials = in.UserCredentials
 	out.BackupTo = in.BackupTo
 	out.AwsCredentials = in.AwsCredentials
 	return

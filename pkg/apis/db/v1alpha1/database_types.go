@@ -34,14 +34,14 @@ type AwsSecretRef struct {
 
 // ValueFrom supports retrieving a credential from elsewhere
 type ValueFrom struct {
-	SecretKeyRef    SecretKeyRef `json:"secretKeyRef"`
-	AwsSecretKeyRef AwsSecretRef `json:"awsSecretKeyRef"`
+	SecretKeyRef    SecretKeyRef `json:"secretKeyRef,omitempty"`
+	AwsSecretKeyRef AwsSecretRef `json:"awsSecretKeyRef,omitempty"`
 }
 
 // Credential supports either a literal value, or retrieving from elsewhere
 type Credential struct {
-	Value     string    `json:"value"`
-	ValueFrom ValueFrom `json:"valueFrom"`
+	Value     string    `json:"value,omitempty"`
+	ValueFrom ValueFrom `json:"valueFrom,omitempty"`
 }
 
 // Credentials are literal credentials provided in the database resource
@@ -71,12 +71,13 @@ type AwsCredentials struct {
 
 // DatabaseSpec defines the desired state of Database
 type DatabaseSpec struct {
-	Provider       string            `json:"provider"`
-	Name           string            `json:"name"`
-	Connect        map[string]string `json:"connect"`
-	Credentials    Credentials       `json:"credentials"`
-	BackupTo       BackupTo          `json:"backupTo,omitempty"`
-	AwsCredentials AwsCredentials    `json:"awsCredentials,omitempty"`
+	Provider          string            `json:"provider"`
+	Name              string            `json:"name"`
+	Connect           map[string]string `json:"connect"`
+	MasterCredentials Credentials       `json:"masterCredentials"`
+	UserCredentials   Credentials       `json:"userCredentials"`
+	BackupTo          BackupTo          `json:"backupTo,omitempty"`
+	AwsCredentials    AwsCredentials    `json:"awsCredentials,omitempty"`
 }
 
 // DatabaseStatus defines the observed state of Database
